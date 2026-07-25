@@ -685,7 +685,13 @@ const Dashboard = () => {
                   {previewDoc.file_name}
                 </span>
               </h2>
-              <button className="modal-close" onClick={() => setPreviewDoc(null)}>×</button>
+              <button 
+                className="modal-close" 
+                style={{ fontSize: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', paddingBottom: '6px', color: 'var(--color-text-muted)' }}
+                onClick={() => setPreviewDoc(null)}
+              >
+                ×
+              </button>
             </div>
             
             <div style={{ 
