@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState('records'); // 'records', 'trends', 'safety', 'assistant'
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
@@ -154,13 +155,9 @@ const Dashboard = () => {
     }
   };
 
-  // Delete Patient and reset
+  // Delete Patient and reset (called after custom modal confirmation)
   const handleDeletePatient = async () => {
     if (!selectedPatientId) return;
-    const confirmDelete = window.confirm(
-      `Are you sure you want to permanently delete the medical profile of "${selectedPatient.patient_name}"?\n\nThis action is irreversible and will delete all associated prescriptions, timelines, charts, and RAG data.`
-    );
-    if (!confirmDelete) return;
 
     try {
       await api.delete(`/patients/${selectedPatientId}`);
@@ -331,7 +328,7 @@ const Dashboard = () => {
                 <button 
                   className="logout-btn" 
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', fontSize: '13px', border: '1px solid #fee2e2', backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
-                  onClick={handleDeletePatient}
+                  onClick={() => setShowDeleteConfirm(true)}
                 >
                   <Trash2 size={14} />
                   <span>Delete Profile</span>
@@ -721,6 +718,64 @@ const Dashboard = () => {
                   style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--radius-xs)' }}
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Patient Confirmation Modal Overlay */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content" style={{ maxWidth: '450px', width: '90%', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: '#dc2626' }}>
+                <AlertTriangle size={20} />
+                <span>Delete Patient Profile</span>
+              </h2>
+              <button className="modal-close" style={{ fontSize: '32px', color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }} onClick={() => setShowDeleteConfirm(false)}>×</button>
+            </div>
+            
+            <div style={{ fontSize: '13.5px', color: 'var(--color-text-main)', lineHeight: '1.5', marginBottom: '24px' }}>
+              Are you sure you want to permanently delete the medical profile of <strong>{selectedPatient.patient_name}</strong>?
+              <p style={{ marginTop: '12px', fontSize: '12.5px', color: '#b91c1c', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+                This action is irreversible and will delete all associated prescriptions, timelines, charts, and RAG search indices.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                style={{ flex: 1, padding: '10px', fontSize: '13.5px', borderRadius: 'var(--radius-md)', cursor: 'pointer', border: '1px solid var(--color-border)' }}
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '6px', 
+                  padding: '10px', 
+                  fontSize: '13.5px', 
+                  border: '1px solid #b91c1c', 
+                  backgroundColor: '#dc2626', 
+                  color: 'white', 
+                  borderRadius: 'var(--radius-md)', 
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  handleDeletePatient();
+                }}
+              >
+                <Trash2 size={15} />
+                Delete Profile
+              </button>
             </div>
           </div>
         </div>
