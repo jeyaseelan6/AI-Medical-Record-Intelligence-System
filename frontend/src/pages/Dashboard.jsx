@@ -271,8 +271,9 @@ const Dashboard = () => {
       <div 
         className="main-content"
         style={{
-          marginLeft: sidebarCollapsed ? '0' : '260px',
-          transition: 'margin-left 0.3s ease',
+          marginLeft: sidebarCollapsed ? 'auto' : '260px',
+          marginRight: sidebarCollapsed ? 'auto' : '0',
+          transition: 'margin-left 0.3s ease, margin-right 0.3s ease',
           padding: sidebarCollapsed ? '40px 60px' : '40px'
         }}
       >
