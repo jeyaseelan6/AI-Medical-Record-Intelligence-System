@@ -85,6 +85,22 @@ const MedicalTimeline = ({ timeline }) => {
                   </span>
                 ))}
               </div>
+
+              {event.document_name && (
+                <div style={{ 
+                  marginTop: '12px', 
+                  fontSize: '11px', 
+                  color: 'var(--color-text-light)',
+                  borderTop: '1px dashed var(--color-border)',
+                  paddingTop: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <span>Source Record:</span>
+                  <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{event.document_name}</span>
+                </div>
+              )}
             </div>
           </div>
         );

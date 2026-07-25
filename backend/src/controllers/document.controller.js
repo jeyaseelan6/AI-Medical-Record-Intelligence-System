@@ -117,9 +117,9 @@ export const uploadDocument = async (req, res) => {
       const labSummary = (extracted.lab_results || []).map(l => `${l.test_name}: ${l.value} ${l.unit || ''}`).join(', ');
 
       const contentChunk = `Document: ${file.originalname}. Date: ${eventData.date || 'Unknown'}. Document Type: ${extracted.document_type || 'Prescription'}. Doctor: ${eventData.doctor_name || 'N/A'}. Diagnosis: ${eventData.diagnosis || 'None'}. Symptoms: ${eventData.symptoms || 'None'}. Notes: ${eventData.notes || 'None'}. Medications: [${medSummary || 'None'}]. Vitals/Labs: [${labSummary || 'None'}].`;
-      
+
       const embedding = await AiService.generateEmbedding(contentChunk);
-      
+
       // Store in vector table. Format standard float array to postgres vector bracket format [val, val, ...]
       const vectorString = `[${embedding.join(',')}]`;
       await query(
@@ -142,7 +142,7 @@ export const uploadDocument = async (req, res) => {
 
   } catch (error) {
     console.error('[Document Controller Error] Upload failed:', error.message);
-    
+
     // Update status to failed in database
     if (file && file.filename) {
       try {
@@ -226,7 +226,7 @@ export const runPatientAnalysis = async (patientId) => {
     await transaction(async (client) => {
       // Clear outdated insights
       await client.query('DELETE FROM ai_insights WHERE patient_id = $1', [patientId]);
-      
+
       // Save fresh insights
       for (const ins of insights) {
         await client.query(
