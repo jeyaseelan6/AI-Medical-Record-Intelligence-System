@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState('records'); // 'records', 'trends', 'safety', 'assistant'
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
@@ -462,7 +463,7 @@ const Dashboard = () => {
                       <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>
                         Click on a ready record to view its original scanned document/prescription.
                       </p>
-                      <DocumentHistory documents={documents} loading={loadingDocuments} />
+                      <DocumentHistory documents={documents} loading={loadingDocuments} onViewDocument={setPreviewDoc} />
                     </div>
                   </div>
 
@@ -669,6 +670,52 @@ const Dashboard = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal Dialog Box */}
+      {previewDoc && (
+        <div className="modal-overlay" onClick={() => setPreviewDoc(null)}>
+          <div className="modal-content" style={{ maxWidth: '900px', width: '95%', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)' }}>
+                <FolderOpen size={18} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '650px' }}>
+                  {previewDoc.file_name}
+                </span>
+              </h2>
+              <button className="modal-close" onClick={() => setPreviewDoc(null)}>×</button>
+            </div>
+            
+            <div style={{ 
+              backgroundColor: 'var(--color-bg)', 
+              padding: '12px', 
+              borderRadius: 'var(--radius-sm)', 
+              border: '1px solid var(--color-border)', 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              minHeight: '400px',
+              maxHeight: '75vh',
+              overflowY: 'auto'
+            }}>
+              {previewDoc.file_name.toLowerCase().endsWith('.pdf') ? (
+                <iframe 
+                  src={`http://localhost:5000${previewDoc.file_url}`} 
+                  width="100%" 
+                  height="600px" 
+                  style={{ border: 'none', borderRadius: 'var(--radius-xs)' }}
+                  title="Document Preview PDF"
+                />
+              ) : (
+                <img 
+                  src={`http://localhost:5000${previewDoc.file_url}`} 
+                  alt={previewDoc.file_name} 
+                  style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--radius-xs)' }}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}

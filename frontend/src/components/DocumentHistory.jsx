@@ -1,7 +1,7 @@
 import React from 'react';
 import { FileText, Image, ExternalLink, RefreshCw } from 'lucide-react';
 
-const DocumentHistory = ({ documents, loading }) => {
+const DocumentHistory = ({ documents, loading, onViewDocument }) => {
   
   // Choose correct icon based on document filename/extension
   const getFileIcon = (fileName) => {
@@ -12,10 +12,13 @@ const DocumentHistory = ({ documents, loading }) => {
     return <FileText size={18} style={{ color: 'var(--color-primary)' }} />;
   };
 
-  // Open the uploaded static resource in a new tab
-  const handleViewFile = (fileUrl) => {
-    // Connects to the Express backend static files endpoint
-    window.open(`http://localhost:5000${fileUrl}`, '_blank');
+  // View the file inside a modal dialog or fallback to a new tab
+  const handleViewFile = (doc) => {
+    if (onViewDocument) {
+      onViewDocument(doc);
+    } else {
+      window.open(`http://localhost:5000${doc.file_url}`, '_blank');
+    }
   };
 
   const getStatusBadgeClass = (status) => {
@@ -64,7 +67,7 @@ const DocumentHistory = ({ documents, loading }) => {
             cursor: doc.processing_status === 'Completed' ? 'pointer' : 'default'
           }}
           className={doc.processing_status === 'Completed' ? 'document-row-hover' : ''}
-          onClick={() => doc.processing_status === 'Completed' && handleViewFile(doc.file_url)}
+          onClick={() => doc.processing_status === 'Completed' && handleViewFile(doc)}
         >
           {/* File details */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
