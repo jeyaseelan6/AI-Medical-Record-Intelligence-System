@@ -21,6 +21,7 @@ const Dashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [workspaceTab, setWorkspaceTab] = useState('records'); // 'records', 'trends', 'safety', 'assistant'
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
@@ -338,88 +339,194 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Split dashboard workspace */}
-            <div className="dashboard-grid">
+            {/* Workspace Tabs Navigation */}
+            <div className="workspace-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', marginBottom: '24px', overflowX: 'auto', paddingBottom: '1px' }}>
+              <button 
+                onClick={() => setWorkspaceTab('records')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '12px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: workspaceTab === 'records' ? 600 : 500,
+                  color: workspaceTab === 'records' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  borderBottom: workspaceTab === 'records' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Clipboard size={15} />
+                <span>Records & Timeline</span>
+              </button>
               
-              {/* Left Column: Timeline and Upload */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                
-                {/* File Upload Zone */}
-                <div className="dashboard-card">
-                  <h3 className="card-title">
-                    <Clipboard size={18} style={{ color: 'var(--color-primary)' }} />
-                    <span>Upload Medical Records</span>
-                  </h3>
-                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-                    Upload prescriptions, lab reports, or discharge summaries (PDF or Image formats).
-                  </p>
-                  <FileUpload 
-                    patientId={selectedPatientId} 
-                    onUploadSuccess={() => fetchPatientDetails(selectedPatientId)} 
-                  />
-                </div>
+              <button 
+                onClick={() => setWorkspaceTab('trends')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '12px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: workspaceTab === 'trends' ? 600 : 500,
+                  color: workspaceTab === 'trends' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  borderBottom: workspaceTab === 'trends' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Activity size={15} />
+                <span>Health Trends</span>
+              </button>
 
-                {/* Uploaded Documents History */}
-                <div className="dashboard-card">
-                  <h3 className="card-title">
-                    <FolderOpen size={18} style={{ color: 'var(--color-primary)' }} />
-                    <span>Uploaded Medical Files</span>
-                  </h3>
-                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>
-                    Click on a ready record to view its original scanned document/prescription.
-                  </p>
-                  <DocumentHistory documents={documents} loading={loadingDocuments} />
-                </div>
+              <button 
+                onClick={() => setWorkspaceTab('safety')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '12px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: workspaceTab === 'safety' ? 600 : 500,
+                  color: workspaceTab === 'safety' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  borderBottom: workspaceTab === 'safety' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <AlertTriangle size={15} />
+                <span>AI Safety Alerts</span>
+              </button>
 
-                {/* Patient Historical Timeline */}
-                <div className="dashboard-card">
-                  <h3 className="card-title">
-                    <ActivitySquare size={18} style={{ color: 'var(--color-primary)' }} />
-                    <span>Clinical History Timeline</span>
-                  </h3>
-                  
-                  {loadingTimeline ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                      <div className="spinner-primary"></div>
+              <button 
+                onClick={() => setWorkspaceTab('assistant')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '12px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: workspaceTab === 'assistant' ? 600 : 500,
+                  color: workspaceTab === 'assistant' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  borderBottom: workspaceTab === 'assistant' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Info size={15} />
+                <span>Clinical Assistant</span>
+              </button>
+            </div>
+
+            {/* Tab Workspace Panels */}
+            <div className="workspace-panel" style={{ transition: 'all 0.3s ease' }}>
+              
+              {/* Tab 1: Records & Timeline */}
+              {workspaceTab === 'records' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 1.5fr', gap: '30px' }} className="records-grid-layout">
+                  {/* Left Column: Upload and File History */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                    {/* File Upload Zone */}
+                    <div className="dashboard-card">
+                      <h3 className="card-title">
+                        <Clipboard size={18} style={{ color: 'var(--color-primary)' }} />
+                        <span>Upload Medical Records</span>
+                      </h3>
+                      <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+                        Upload prescriptions, lab reports, or discharge summaries (PDF or Image formats).
+                      </p>
+                      <FileUpload 
+                        patientId={selectedPatientId} 
+                        onUploadSuccess={() => fetchPatientDetails(selectedPatientId)} 
+                      />
                     </div>
-                  ) : (
-                    <MedicalTimeline timeline={timeline} />
-                  )}
+
+                    {/* Uploaded Documents History */}
+                    <div className="dashboard-card">
+                      <h3 className="card-title">
+                        <FolderOpen size={18} style={{ color: 'var(--color-primary)' }} />
+                        <span>Uploaded Medical Files</span>
+                      </h3>
+                      <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>
+                        Click on a ready record to view its original scanned document/prescription.
+                      </p>
+                      <DocumentHistory documents={documents} loading={loadingDocuments} />
+                    </div>
+                  </div>
+
+                  {/* Right Column: Chronological Timeline */}
+                  <div>
+                    <div className="dashboard-card" style={{ height: '100%' }}>
+                      <h3 className="card-title">
+                        <ActivitySquare size={18} style={{ color: 'var(--color-primary)' }} />
+                        <span>Clinical History Timeline</span>
+                      </h3>
+                      
+                      {loadingTimeline ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+                          <div className="spinner-primary"></div>
+                        </div>
+                      ) : (
+                        <MedicalTimeline timeline={timeline} />
+                      )}
+                    </div>
+                  </div>
                 </div>
+              )}
 
-              </div>
-
-              {/* Right Column: AI Analytics & Q&A Assistant */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                
-                {/* AI Security & Clinical Insights */}
-                <div className="dashboard-card">
-                  <h3 className="card-title">
-                    <AlertTriangle size={18} style={{ color: 'var(--color-warning)' }} />
-                    <span>AI Safety & Vitals Alerts</span>
-                  </h3>
-                  <InsightCards insights={insights} />
-                </div>
-
-                {/* Vitals Trend Visual Graphs */}
-                <div className="dashboard-card">
+              {/* Tab 2: Health Trends */}
+              {workspaceTab === 'trends' && (
+                <div className="dashboard-card" style={{ padding: '30px' }}>
                   <h3 className="card-title">
                     <Activity size={18} style={{ color: 'var(--color-secondary)' }} />
                     <span>Health Metric Trends</span>
                   </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+                    Chronological tracking of body temperature and weight vitals extracted from record documents.
+                  </p>
                   <TrendCharts timeline={timeline} />
                 </div>
+              )}
 
-                {/* RAG-based Conversational QA Engine */}
-                <div className="dashboard-card">
+              {/* Tab 3: AI Safety Alerts */}
+              {workspaceTab === 'safety' && (
+                <div className="dashboard-card" style={{ padding: '30px' }}>
+                  <h3 className="card-title">
+                    <AlertTriangle size={18} style={{ color: 'var(--color-warning)' }} />
+                    <span>AI Safety & Vitals Alerts</span>
+                  </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+                    Cross-visit medication safety, dosage modifications, drug repetitions, and clinical record inconsistencies.
+                  </p>
+                  <InsightCards insights={insights} />
+                </div>
+              )}
+
+              {/* Tab 4: Clinical QA Assistant */}
+              {workspaceTab === 'assistant' && (
+                <div className="dashboard-card" style={{ padding: '30px' }}>
                   <h3 className="card-title">
                     <Info size={18} style={{ color: 'var(--color-primary)' }} />
                     <span>Evidence-based Clinical Assistant</span>
                   </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+                    Ask specific questions about the patient's medical records. The assistant retrieves semantic evidence sources to reply.
+                  </p>
                   <QaChat patientId={selectedPatientId} />
                 </div>
-
-              </div>
+              )}
 
             </div>
           </div>
