@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, api } from '../context/AuthContext.jsx';
-import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen } from 'lucide-react';
+import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2 } from 'lucide-react';
 import FileUpload from '../components/FileUpload.jsx';
 import MedicalTimeline from '../components/MedicalTimeline.jsx';
 import DocumentHistory from '../components/DocumentHistory.jsx';
@@ -19,9 +19,13 @@ const Dashboard = () => {
   const [insights, setInsights] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
+  const [editPatientName, setEditPatientName] = useState('');
+  const [editPatientAge, setEditPatientAge] = useState('');
+  const [editPatientGender, setEditPatientGender] = useState('Male');
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
@@ -117,6 +121,63 @@ const Dashboard = () => {
     }
   };
 
+  // Open Edit Profile modal with prefilled data
+  const handleOpenEditModal = () => {
+    if (!selectedPatient) return;
+    setEditPatientName(selectedPatient.patient_name);
+    setEditPatientAge(selectedPatient.age || '');
+    setEditPatientGender(selectedPatient.gender || 'Male');
+    setShowEditModal(true);
+  };
+
+  // Submit Patient update
+  const handleUpdatePatient = async (e) => {
+    e.preventDefault();
+    if (!selectedPatientId || !editPatientName) return;
+    try {
+      const res = await api.put(`/patients/${selectedPatientId}`, {
+        patient_name: editPatientName,
+        age: parseInt(editPatientAge) || null,
+        gender: editPatientGender
+      });
+      
+      const updated = res.data.data;
+      // Update local state list and current patient details
+      setPatients(prev => prev.map(p => p.id === updated.id ? updated : p));
+      setSelectedPatient(updated);
+      setShowEditModal(false);
+    } catch (err) {
+      console.error('Error updating patient:', err.message);
+    }
+  };
+
+  // Delete Patient and reset
+  const handleDeletePatient = async () => {
+    if (!selectedPatientId) return;
+    const confirmDelete = window.confirm(
+      `Are you sure you want to permanently delete the medical profile of "${selectedPatient.patient_name}"?\n\nThis action is irreversible and will delete all associated prescriptions, timelines, charts, and RAG data.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/patients/${selectedPatientId}`);
+      const updatedPatients = patients.filter(p => p.id !== selectedPatientId);
+      setPatients(updatedPatients);
+      
+      // Select another patient or clear selection
+      const nextSelectedId = updatedPatients.length > 0 ? updatedPatients[0].id : null;
+      setSelectedPatientId(nextSelectedId);
+      if (!nextSelectedId) {
+        setSelectedPatient(null);
+        setTimeline([]);
+        setInsights([]);
+        setDocuments([]);
+      }
+    } catch (err) {
+      console.error('Error deleting patient:', err.message);
+    }
+  };
+
   return (
     <div className="dashboard-layout">
       {/* Sidebar Navigation */}
@@ -201,7 +262,39 @@ const Dashboard = () => {
                   <span>ID: #{selectedPatient.id}</span>
                 </div>
               </div>
-              <Activity size={32} style={{ opacity: 0.8 }} />
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    padding: '8px 12px', 
+                    fontSize: '13px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    transition: 'var(--transition-fast)'
+                  }}
+                  className="btn-glass-hover"
+                  onClick={handleOpenEditModal}
+                >
+                  <Edit3 size={14} style={{ color: 'white' }} />
+                  <span style={{ color: 'white' }}>Edit Profile</span>
+                </button>
+                <button 
+                  className="logout-btn" 
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', fontSize: '13px', border: '1px solid #fee2e2', backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
+                  onClick={handleDeletePatient}
+                >
+                  <Trash2 size={14} />
+                  <span>Delete Profile</span>
+                </button>
+                <Activity size={32} style={{ opacity: 0.8 }} />
+              </div>
             </div>
 
             {/* Split dashboard workspace */}
@@ -355,6 +448,76 @@ const Dashboard = () => {
                   style={{ flex: 1 }}
                 >
                   Save Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Patient Profile Modal */}
+      {showEditModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px' }}>Edit Patient Profile</h2>
+              <button className="modal-close" onClick={() => setShowEditModal(false)}>×</button>
+            </div>
+            
+            <form onSubmit={handleUpdatePatient}>
+              <div className="form-group">
+                <label className="form-label">Patient Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Priya Sharma"
+                  value={editPatientName}
+                  onChange={(e) => setEditPatientName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Age</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="e.g. 35"
+                    value={editPatientAge}
+                    onChange={(e) => setEditPatientAge(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Gender</label>
+                  <select
+                    className="form-input"
+                    value={editPatientGender}
+                    onChange={(e) => setEditPatientGender(e.target.value)}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  style={{ flex: 1 }}
+                  onClick={() => setShowEditModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  style={{ flex: 1 }}
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

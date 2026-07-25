@@ -110,8 +110,92 @@ export const getPatientById = async (req, res) => {
   }
 };
 
+/**
+ * Updates a patient profile.
+ * Endpoint: PUT /api/patients/:id
+ */
+export const updatePatient = async (req, res) => {
+  const patientId = req.params.id;
+  const { patient_name, age, gender } = req.body;
+  const userId = req.user.id;
+
+  if (!patient_name) {
+    return res.status(400).json({
+      success: false,
+      message: 'Patient name is required for update.'
+    });
+  }
+
+  try {
+    // 1. Verify owner validation
+    const patientQuery = await query('SELECT user_id FROM patients WHERE id = $1', [patientId]);
+    if (patientQuery.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Patient profile not found.' });
+    }
+    if (patientQuery.rows[0].user_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized profile update action.' });
+    }
+
+    // 2. Perform database update
+    const updated = await query(
+      `UPDATE patients 
+       SET patient_name = $1, age = $2, gender = $3, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $4 RETURNING *`,
+      [patient_name, age || null, gender || null, patientId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Patient profile updated successfully.',
+      data: updated.rows[0]
+    });
+  } catch (error) {
+    console.error('[Patient Controller Error] Update failed:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while updating patient profile.'
+    });
+  }
+};
+
+/**
+ * Deletes a patient profile and cascading related database records.
+ * Endpoint: DELETE /api/patients/:id
+ */
+export const deletePatient = async (req, res) => {
+  const patientId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+    // 1. Verify owner validation
+    const patientQuery = await query('SELECT user_id FROM patients WHERE id = $1', [patientId]);
+    if (patientQuery.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Patient profile not found.' });
+    }
+    if (patientQuery.rows[0].user_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized profile deletion action.' });
+    }
+
+    // 2. Perform cascade delete (Postgres automatically drops child uploads and history due to foreign keys cascades)
+    await query('DELETE FROM patients WHERE id = $1', [patientId]);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Patient profile and all historical files deleted successfully.'
+    });
+  } catch (error) {
+    console.error('[Patient Controller Error] Delete failed:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while deleting patient profile.'
+    });
+  }
+};
+
 export default {
   createPatient,
   getPatients,
-  getPatientById
+  getPatientById,
+  updatePatient,
+  deletePatient
 };

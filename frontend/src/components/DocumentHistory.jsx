@@ -55,7 +55,7 @@ const DocumentHistory = ({ documents, loading }) => {
           style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            justifyContent: 'between', 
+            justifyContent: 'space-between', 
             padding: '12px 14px', 
             backgroundColor: 'var(--color-bg)', 
             border: '1px solid var(--color-border)', 
@@ -76,7 +76,7 @@ const DocumentHistory = ({ documents, loading }) => {
                 color: 'var(--color-text-main)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
-                text-overflow: 'ellipsis'
+                textOverflow: 'ellipsis'
               }} title={doc.file_name}>
                 {doc.file_name}
               </div>
