@@ -851,3 +851,8 @@ a:hover {
   cursor: pointer;
   color: var(--color-text-muted);
 }
+
+.document-row-hover:hover {
+  background-color: var(--color-primary-light) !important;
+  border-color: var(--color-primary) !important;
+}

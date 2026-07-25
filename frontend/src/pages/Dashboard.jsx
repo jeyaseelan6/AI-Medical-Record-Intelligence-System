@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, api } from '../context/AuthContext.jsx';
-import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse } from 'lucide-react';
+import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen } from 'lucide-react';
 import FileUpload from '../components/FileUpload.jsx';
 import MedicalTimeline from '../components/MedicalTimeline.jsx';
+import DocumentHistory from '../components/DocumentHistory.jsx';
 import QaChat from '../components/QaChat.jsx';
 import InsightCards from '../components/InsightCards.jsx';
 import TrendCharts from '../components/TrendCharts.jsx';
@@ -16,12 +17,14 @@ const Dashboard = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [insights, setInsights] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
 
   // Fetch patient profiles on load
   const fetchPatients = async () => {
@@ -59,6 +62,17 @@ const Dashboard = () => {
       // Fetch AI Insights
       const insightsRes = await api.get(`/insights/${id}`);
       setInsights(insightsRes.data.data);
+
+      // Fetch Documents list
+      try {
+        setLoadingDocuments(true);
+        const docsRes = await api.get(`/documents/${id}`);
+        setDocuments(docsRes.data.data);
+      } catch (docErr) {
+        console.error('Error fetching patient documents:', docErr.message);
+      } finally {
+        setLoadingDocuments(false);
+      }
     } catch (err) {
       console.error('Error fetching patient details:', err.message);
     } finally {
@@ -73,6 +87,7 @@ const Dashboard = () => {
       setSelectedPatient(null);
       setTimeline([]);
       setInsights([]);
+      setDocuments([]);
     }
   }, [selectedPatientId, patients]);
 
@@ -208,6 +223,18 @@ const Dashboard = () => {
                     patientId={selectedPatientId} 
                     onUploadSuccess={() => fetchPatientDetails(selectedPatientId)} 
                   />
+                </div>
+
+                {/* Uploaded Documents History */}
+                <div className="dashboard-card">
+                  <h3 className="card-title">
+                    <FolderOpen size={18} style={{ color: 'var(--color-primary)' }} />
+                    <span>Uploaded Medical Files</span>
+                  </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>
+                    Click on a ready record to view its original scanned document/prescription.
+                  </p>
+                  <DocumentHistory documents={documents} loading={loadingDocuments} />
                 </div>
 
                 {/* Patient Historical Timeline */}
