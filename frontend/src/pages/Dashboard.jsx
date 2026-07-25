@@ -687,7 +687,7 @@ const Dashboard = () => {
               </h2>
               <button 
                 className="modal-close" 
-                style={{ fontSize: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', paddingBottom: '6px', color: 'var(--color-text-muted)' }}
+                style={{ fontSize: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', paddingBottom: '6px', color: '#ef4444' }}
                 onClick={() => setPreviewDoc(null)}
               >
                 ×
