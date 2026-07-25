@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, api } from '../context/AuthContext.jsx';
-import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2 } from 'lucide-react';
+import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import FileUpload from '../components/FileUpload.jsx';
 import MedicalTimeline from '../components/MedicalTimeline.jsx';
 import DocumentHistory from '../components/DocumentHistory.jsx';
@@ -20,6 +20,7 @@ const Dashboard = () => {
   const [documents, setDocuments] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
@@ -180,8 +181,40 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-layout">
+      {/* Sidebar Collapse Toggle Arrow */}
+      <button
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        style={{
+          position: 'fixed',
+          left: sidebarCollapsed ? '12px' : '246px',
+          top: '20px',
+          zIndex: 100,
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '50%',
+          width: '28px',
+          height: '28px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: 'var(--shadow-sm)',
+          transition: 'all 0.3s ease',
+          color: 'var(--color-primary)'
+        }}
+        title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+      >
+        {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
+
       {/* Sidebar Navigation */}
-      <div className="sidebar">
+      <div 
+        className="sidebar"
+        style={{
+          transform: sidebarCollapsed ? 'translateX(-260px)' : 'translateX(0)',
+          transition: 'transform 0.3s ease'
+        }}
+      >
         <div className="sidebar-header">
           <HeartPulse size={28} style={{ color: 'var(--color-primary)' }} />
           <h2 className="sidebar-title" style={{ color: 'var(--color-primary)' }}>MedAI</h2>
@@ -235,7 +268,14 @@ const Dashboard = () => {
       </div>
 
       {/* Main Dashboard Space */}
-      <div className="main-content">
+      <div 
+        className="main-content"
+        style={{
+          marginLeft: sidebarCollapsed ? '0' : '260px',
+          transition: 'margin-left 0.3s ease',
+          padding: sidebarCollapsed ? '40px 60px' : '40px'
+        }}
+      >
         {!selectedPatient ? (
           <div className="empty-state">
             <span className="empty-icon">📂</span>
