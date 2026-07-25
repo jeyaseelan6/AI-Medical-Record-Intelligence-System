@@ -56,7 +56,7 @@ export const uploadDocument = async (req, res) => {
     // Execute AI pipeline asynchronously or synchronously? 
     // For local demo reliability and immediate dashboard feedback, we run synchronously.
     const fileBuffer = fs.readFileSync(file.path);
-    const extracted = await AiService.extractMedicalData(fileBuffer, file.mimetype);
+    const extracted = await AiService.extractMedicalData(fileBuffer, file.mimetype, file.originalname);
 
     // 3. Save extracted structure inside a secure SQL Transaction
     await transaction(async (client) => {

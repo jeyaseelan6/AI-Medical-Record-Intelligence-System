@@ -109,9 +109,9 @@ export class AiService {
    * @param {string} mimeType - e.g. "application/pdf" or "image/png"
    * @returns {Promise<Object>} Clean JSON structured representation of the record
    */
-  static async extractMedicalData(fileBuffer, mimeType) {
+  static async extractMedicalData(fileBuffer, mimeType, fileName = '') {
     if (!genAI) {
-      return this._getMockExtractionData();
+      return this._getMockExtractionData(fileName);
     }
 
     try {
@@ -190,7 +190,7 @@ Format the output strictly as a JSON object matching this structure:
     } catch (error) {
       console.warn('[AI Service Warning] Multimodal document extraction failed due to API limits:', error.message);
       console.warn('[AI Service Info] Activating Mock extraction fallback to prevent system crash.');
-      return this._getMockExtractionData();
+      return this._getMockExtractionData(fileName);
     }
   }
 
@@ -332,48 +332,104 @@ Every response must be safe, explainable, and return a JSON structure:
   /**
    * Private mock extraction data for keyless local dev
    */
-  static _getMockExtractionData() {
+  static _getMockExtractionData(fileName = '') {
+    const nameLower = fileName.toLowerCase();
+    
+    // Default base mock data (Set A: 2019)
+    let date = "2019-10-03";
+    let docName = "Dr. Priya Sharma";
+    let diagnosis = "Mild Hypertension and Fever";
+    let symptoms = "High body temperature, fatigue, throbbing headaches";
+    let notes = "Take complete bed rest for 5 days. Monitor temperature.";
+    let medications = [
+      { name: "Paracetamol", dosage: "500mg", frequency: "Morning/Night", duration: "5 days" },
+      { name: "Amlodipine", dosage: "5mg", frequency: "Morning", duration: "30 days" }
+    ];
+    let temp = "38.2";
+    let bp = "140/90";
+    let weight = "72";
+
+    // Set B: if filename has 2020 or visit2 or report
+    if (nameLower.includes('2020') || nameLower.includes('visit2') || (nameLower.includes('report') && !nameLower.includes('2019'))) {
+      date = "2020-01-02";
+      docName = "Dr. Sen";
+      diagnosis = "Mild Upper Respiratory Tract Infection";
+      symptoms = "Cough, throat irritation, nasal congestion";
+      notes = "Avoid cold drinks. Rest well.";
+      medications = [
+        { name: "Paracetamol", dosage: "1000mg", frequency: "Three times daily", duration: "5 days" }
+      ];
+      temp = "37.5";
+      bp = "120/80";
+      weight = "75";
+    } 
+    // Set C: if filename has 2023 or 2024 or visit3 or lab
+    else if (nameLower.includes('2023') || nameLower.includes('2024') || nameLower.includes('visit3') || nameLower.includes('lab')) {
+      date = "2023-05-15";
+      docName = "Dr. Priya Sharma";
+      diagnosis = "Hypertension Follow-up";
+      symptoms = "No active fever, mild dizziness on waking up";
+      notes = "Continue daily walking. Salt restrictions.";
+      medications = [
+        { name: "Amlodipine", dosage: "10mg", frequency: "Morning", duration: "60 days" }
+      ];
+      temp = "36.8";
+      bp = "135/85";
+      weight = "78";
+    }
+    // Set D: Fallback using character hash of filename to generate varied dates/weights
+    else if (fileName) {
+      let hash = 0;
+      for (let i = 0; i < fileName.length; i++) {
+        hash = fileName.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const val = Math.abs(hash);
+      const year = 2020 + (val % 5);
+      const month = String(1 + (val % 12)).padStart(2, '0');
+      const day = String(1 + (val % 28)).padStart(2, '0');
+      date = `${year}-${month}-${day}`;
+      
+      const weightVal = 70 + (val % 15);
+      weight = String(weightVal);
+      
+      const tempVal = (36.5 + (val % 30) / 10).toFixed(1);
+      temp = tempVal;
+    }
+
     return {
       document_type: "Prescription",
       patient_info: {
         name: "John Doe",
         age: 45,
         gender: "Male",
-        weight: "78kg",
+        weight: `${weight}kg`,
         height: "180cm",
-        bmi: "24.1"
+        bmi: (weight / 3.24).toFixed(1)
       },
       event: {
-        date: "2019-10-03",
-        doctor_name: "Dr. Priya Sharma",
-        diagnosis: "Mild Hypertension and Fever",
-        symptoms: "High body temperature, fatigue, throbbing headaches",
-        notes: "Take complete bed rest for 5 days. Monitor temperature."
+        date,
+        doctor_name: docName,
+        diagnosis,
+        symptoms,
+        notes
       },
-      medications: [
-        {
-          name: "Paracetamol",
-          dosage: "500mg",
-          frequency: "Morning/Night",
-          duration: "5 days"
-        },
-        {
-          name: "Amlodipine",
-          dosage: "5mg",
-          frequency: "Morning",
-          duration: "30 days"
-        }
-      ],
+      medications,
       lab_results: [
         {
           test_name: "Temperature",
-          value: "38.2",
+          value: temp,
           unit: "C",
           normal_range: "36.5 - 37.5"
         },
         {
+          test_name: "Weight",
+          value: weight,
+          unit: "kg",
+          normal_range: "60 - 80"
+        },
+        {
           test_name: "Blood Pressure",
-          value: "140/90",
+          value: bp,
           unit: "mmHg",
           normal_range: "120/80"
         }
