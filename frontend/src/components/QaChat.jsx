@@ -6,6 +6,7 @@ const QaChat = ({ patientId }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
+  const [expandedDetails, setExpandedDetails] = useState({});
   
   const chatHistoryRef = useRef(null);
 
@@ -20,6 +21,7 @@ const QaChat = ({ patientId }) => {
     ]);
     setInputValue('');
     setSending(false);
+    setExpandedDetails({});
   }, [patientId]);
 
   // Autoscroll chat history to focus on fresh replies
@@ -28,6 +30,13 @@ const QaChat = ({ patientId }) => {
       chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const toggleDetails = (idx) => {
+    setExpandedDetails(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -99,45 +108,76 @@ const QaChat = ({ patientId }) => {
               </div>
             ) : (
               <div>
-                <p style={{ margin: 0 }}>{msg.text}</p>
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.text}</p>
                 
                 {/* AI Detail Panels for Evidential Citation & Safety */}
                 {msg.sender === 'ai' && !msg.isSystem && msg.evidence && (
-                  <div className="ai-details-wrapper">
-                    <div className="ai-meta-row">
-                      <span className="ai-meta-label">Source Evidence:</span>
-                      <span className="ai-meta-val" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontStyle: 'italic', fontWeight: 400 }}>
-                        <FileText size={12} />
-                        {msg.evidence}
-                      </span>
-                    </div>
+                  <div style={{ marginTop: '12px' }}>
+                    <button
+                      onClick={() => toggleDetails(index)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-primary)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span>{expandedDetails[index] ? 'Hide' : 'View'} Evidential Citations & Safety Checks</span>
+                    </button>
+                    
+                    {expandedDetails[index] && (
+                      <div className="ai-details-wrapper" style={{ 
+                        marginTop: '8px', 
+                        padding: '12px', 
+                        backgroundColor: 'var(--color-bg)', 
+                        border: '1px dashed var(--color-border)', 
+                        borderRadius: 'var(--radius-sm)',
+                        animation: 'fadeIn 0.2s ease-out'
+                      }}>
+                        <div className="ai-meta-row" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                          <span className="ai-meta-label" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source Evidence:</span>
+                          <span className="ai-meta-val" style={{ fontSize: '12px', fontStyle: 'italic', fontWeight: 400, color: 'var(--color-text-main)', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                            <FileText size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--color-primary)' }} />
+                            {msg.evidence}
+                          </span>
+                        </div>
 
-                    {msg.confidence !== undefined && (
-                      <div className="ai-meta-row">
-                        <span className="ai-meta-label">Extraction Confidence:</span>
-                        <span className="ai-meta-val" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-primary)' }}>
-                          <Check size={12} />
-                          {msg.confidence}%
-                        </span>
-                      </div>
-                    )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '8px' }}>
+                          {msg.confidence !== undefined && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span className="ai-meta-label" style={{ fontSize: '11px' }}>Confidence:</span>
+                              <span className="ai-meta-val" style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-primary)', fontSize: '12px' }}>
+                                <Check size={12} />
+                                {msg.confidence}%
+                              </span>
+                            </div>
+                          )}
 
-                    {msg.riskLevel && (
-                      <div className="ai-meta-row">
-                        <span className="ai-meta-label">Safety Risk Level:</span>
-                        <span className={`ai-meta-val ${msg.riskLevel.toLowerCase()}`}>
-                          {msg.riskLevel}
-                        </span>
-                      </div>
-                    )}
+                          {msg.riskLevel && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span className="ai-meta-label" style={{ fontSize: '11px' }}>Risk Level:</span>
+                              <span className={`ai-meta-val ${msg.riskLevel.toLowerCase()}`} style={{ fontSize: '12px' }}>
+                                {msg.riskLevel}
+                              </span>
+                            </div>
+                          )}
+                        </div>
 
-                    {msg.recommendation && (
-                      <div 
-                        className="disclaimer-banner"
-                        style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', margin: '8px 0 0 0' }}
-                      >
-                        <ShieldAlert size={14} style={{ flexShrink: 0, marginTop: '2px', color: '#92400e' }} />
-                        <span><strong>Clinical Note:</strong> {msg.recommendation}</span>
+                        {msg.recommendation && (
+                          <div 
+                            className="disclaimer-banner"
+                            style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', margin: '8px 0 0 0', padding: '10px' }}
+                          >
+                            <ShieldAlert size={14} style={{ flexShrink: 0, marginTop: '2px', color: '#92400e' }} />
+                            <span><strong>Clinical Note:</strong> {msg.recommendation}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
