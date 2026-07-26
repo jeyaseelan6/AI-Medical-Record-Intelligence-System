@@ -58,12 +58,34 @@ export const uploadDocument = async (req, res) => {
     const fileBuffer = fs.readFileSync(file.path);
     const extracted = await AiService.extractMedicalData(fileBuffer, file.mimetype, file.originalname);
 
+    // Categorize the document based on AI extraction and filename fallback analysis
+    const docType = (() => {
+      const name = (file.originalname || '').toLowerCase();
+      const extractedType = (extracted.document_type || '').trim().toLowerCase();
+      
+      const validTypes = ['Prescription', 'Lab Report', 'Discharge Summary', 'Medical Notes'];
+      const matched = validTypes.find(t => t.toLowerCase() === extractedType);
+      if (matched) return matched;
+      
+      // Fallback filename keyword detection
+      if (name.includes('prescription') || name.includes('rx') || name.includes('medication') || name.includes('meds') || name.includes('pill')) {
+        return 'Prescription';
+      }
+      if (name.includes('lab') || name.includes('report') || name.includes('test') || name.includes('result') || name.includes('blood') || name.includes('urine') || name.includes('cbc') || name.includes('panel')) {
+        return 'Lab Report';
+      }
+      if (name.includes('discharge') || name.includes('summary') || name.includes('hospital')) {
+        return 'Discharge Summary';
+      }
+      return 'Medical Notes';
+    })();
+
     // 3. Save extracted structure inside a secure SQL Transaction
     await transaction(async (client) => {
       // A. Update document classification
       await client.query(
         'UPDATE documents SET document_type = $1, processing_status = $2 WHERE id = $3',
-        [extracted.document_type || 'Prescription', 'Completed', documentId]
+        [docType, 'Completed', documentId]
       );
 
       // B. Insert Medical Event
@@ -116,7 +138,7 @@ export const uploadDocument = async (req, res) => {
       const medSummary = (extracted.medications || []).map(m => `${m.name} ${m.dosage || ''} (${m.frequency || ''})`).join(', ');
       const labSummary = (extracted.lab_results || []).map(l => `${l.test_name}: ${l.value} ${l.unit || ''}`).join(', ');
 
-      const contentChunk = `Document: ${file.originalname}. Date: ${eventData.date || 'Unknown'}. Document Type: ${extracted.document_type || 'Prescription'}. Doctor: ${eventData.doctor_name || 'N/A'}. Diagnosis: ${eventData.diagnosis || 'None'}. Symptoms: ${eventData.symptoms || 'None'}. Notes: ${eventData.notes || 'None'}. Medications: [${medSummary || 'None'}]. Vitals/Labs: [${labSummary || 'None'}].`;
+      const contentChunk = `Document: ${file.originalname}. Date: ${eventData.date || 'Unknown'}. Document Type: ${docType}. Doctor: ${eventData.doctor_name || 'N/A'}. Diagnosis: ${eventData.diagnosis || 'None'}. Symptoms: ${eventData.symptoms || 'None'}. Notes: ${eventData.notes || 'None'}. Medications: [${medSummary || 'None'}]. Vitals/Labs: [${labSummary || 'None'}].`;
 
       const embedding = await AiService.generateEmbedding(contentChunk);
 
