@@ -307,17 +307,19 @@ Strictly search for:
 3. Health Trends: Track critical lab results or physical metrics (Weight, Temperature, Blood Pressure, Hemoglobin) over time and alert on negative or significant patterns.
 4. Record Quality Issues: Check for patient identity mismatches (e.g. doctor logs a different patient name on the file), missing allergy warnings, or clear mathematical inconsistencies (e.g. quantity vs duration).
 
-Provide insights as an array of JSON objects following this exact format:
-[
-  {
-    "insight_type": "duplicate_medication" | "dosage_conflict" | "trend_alert" | "quality_issue",
-    "description": "Clear medical warning or description of the trend.",
-    "confidence_score": Float between 0 and 100,
-    "evidence": "Brief citation. e.g., 'Same medication Paracetamol found in prescriptions dated 2019-10-03 and 2020-01-02.'"
-  }
-]
+Provide insights strictly as a JSON object containing an "insights" key with an array of objects matching this format:
+{
+  "insights": [
+    {
+      "insight_type": "duplicate_medication" | "dosage_conflict" | "trend_alert" | "quality_issue",
+      "description": "Clear medical warning or description of the trend.",
+      "confidence_score": Float between 0 and 100,
+      "evidence": "Brief citation. e.g., 'Same medication Paracetamol found in prescriptions dated 2019-10-03 and 2020-01-02.'"
+    }
+  ]
+}
 
-Important: Focus only on real issues. If there are no issues, return an empty array [].
+Important: Focus only on real issues. If there are no issues, return an empty array under the "insights" key.
 `;
 
     if (provider === 'openai') {
@@ -333,7 +335,14 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
             { role: 'user', content: `Patient History Data:\n${JSON.stringify({ patient: patientInfo, history: events })}` }
           ]
         });
-        return this.cleanJsonParse(response.choices[0].message.content);
+        const parsed = this.cleanJsonParse(response.choices[0].message.content);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+        if (parsed && Array.isArray(parsed.insights)) {
+          return parsed.insights;
+        }
+        return [];
       } catch (error) {
         console.error('[AI Service Error] OpenAI longitudinal analysis failed:', error.message);
         if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
@@ -370,7 +379,14 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
         }
       });
 
-      return this.cleanJsonParse(result.response.text());
+      const parsed = this.cleanJsonParse(result.response.text());
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (parsed && Array.isArray(parsed.insights)) {
+        return parsed.insights;
+      }
+      return [];
     } catch (error) {
       console.error('[AI Service Error] Gemini longitudinal analysis failed:', error.message);
       if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
