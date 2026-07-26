@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Image, ExternalLink, RefreshCw } from 'lucide-react';
+import { FileText, Image, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import { API_URL } from '../context/AuthContext.jsx';
 
 const DocumentHistory = ({ documents, loading, onViewDocument }) => {
@@ -103,9 +103,27 @@ const DocumentHistory = ({ documents, loading, onViewDocument }) => {
             
             {doc.processing_status === 'Completed' && (
               <>
-                <span className={getStatusBadgeClass(doc.processing_status)} style={{ padding: '2px 8px', fontSize: '10px' }}>
-                  Ready
-                </span>
+                {doc.document_type === 'Unrelated' ? (
+                  <span style={{ 
+                    backgroundColor: 'rgba(180, 83, 9, 0.08)', 
+                    color: '#b45309', 
+                    border: '1px solid rgba(180, 83, 9, 0.2)',
+                    padding: '2px 8px', 
+                    borderRadius: '20px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <AlertTriangle size={10} />
+                    Unrelated
+                  </span>
+                ) : (
+                  <span className={getStatusBadgeClass(doc.processing_status)} style={{ padding: '2px 8px', fontSize: '10px' }}>
+                    Ready
+                  </span>
+                )}
                 <ExternalLink size={14} style={{ color: 'var(--color-text-light)' }} />
               </>
             )}

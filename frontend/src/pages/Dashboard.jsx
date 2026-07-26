@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, api, API_URL } from '../context/AuthContext.jsx';
-import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import FileUpload from '../components/FileUpload.jsx';
 import MedicalTimeline from '../components/MedicalTimeline.jsx';
 import DocumentHistory from '../components/DocumentHistory.jsx';
@@ -23,8 +23,14 @@ const Dashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState('records'); // 'records', 'trends', 'safety', 'assistant'
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [imageZoomed, setImageZoomed] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newPatientName, setNewPatientName] = useState('');
+
+  // Reset zoom state when previewed document changes
+  useEffect(() => {
+    setImageZoomed(false);
+  }, [previewDoc]);
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
   const [editPatientName, setEditPatientName] = useState('');
@@ -723,13 +729,23 @@ const Dashboard = () => {
       )}
 
       {/* Document Preview Modal Dialog Box */}
+      {/* Document Preview Modal Dialog Box */}
       {previewDoc && (
         <div className="modal-overlay" onClick={() => setPreviewDoc(null)}>
-          <div className="modal-content" style={{ maxWidth: '900px', width: '95%', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
+          <div 
+            className="modal-content" 
+            style={{ 
+              maxWidth: imageZoomed ? '95vw' : '900px', 
+              width: '95%', 
+              padding: '24px',
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+            }} 
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header" style={{ marginBottom: '16px' }}>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)' }}>
                 <FolderOpen size={18} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '650px' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: imageZoomed ? '80vw' : '650px' }}>
                   {previewDoc.file_name}
                 </span>
               </h2>
@@ -743,7 +759,7 @@ const Dashboard = () => {
             </div>
             
             <div style={{ 
-              backgroundColor: 'var(--color-bg)', 
+              backgroundColor: '#f8fafc', 
               padding: '12px', 
               borderRadius: 'var(--radius-sm)', 
               border: '1px solid var(--color-border)', 
@@ -751,8 +767,10 @@ const Dashboard = () => {
               justifyContent: 'center', 
               alignItems: 'center', 
               minHeight: '400px',
-              maxHeight: '75vh',
-              overflowY: 'auto'
+              maxHeight: imageZoomed ? '80vh' : '55vh',
+              overflow: 'auto',
+              position: 'relative',
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
             }}>
               {previewDoc.file_name.toLowerCase().endsWith('.pdf') ? (
                 <iframe 
@@ -763,11 +781,52 @@ const Dashboard = () => {
                   title="Document Preview PDF"
                 />
               ) : (
-                <img 
-                  src={`${API_URL}${previewDoc.file_url}`} 
-                  alt={previewDoc.file_name} 
-                  style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--radius-xs)' }}
-                />
+                <div 
+                  style={{ 
+                    position: 'relative', 
+                    cursor: imageZoomed ? 'zoom-out' : 'zoom-in', 
+                    display: 'inline-block',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                  onClick={() => setImageZoomed(!imageZoomed)}
+                >
+                  <img 
+                    src={`${API_URL}${previewDoc.file_url}`} 
+                    alt={previewDoc.file_name} 
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: imageZoomed ? '78vh' : '50vh', 
+                      objectFit: 'contain', 
+                      borderRadius: 'var(--radius-xs)',
+                      display: 'block',
+                      transform: imageZoomed ? 'scale(1.7)' : 'scale(1)',
+                      transformOrigin: 'center center',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      margin: imageZoomed ? '50px' : '0'
+                    }}
+                  />
+                  
+                  {/* Floating Zoom Magnifier Icon Indicator */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '16px',
+                    right: '16px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    boxShadow: 'var(--shadow-md)',
+                    borderRadius: '50%',
+                    padding: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-primary)',
+                    cursor: 'pointer',
+                    border: '1px solid var(--color-border)',
+                    zIndex: 10,
+                    transition: 'transform 0.2s ease'
+                  }}>
+                    {imageZoomed ? <ZoomOut size={16} /> : <ZoomIn size={16} />}
+                  </div>
+                </div>
               )}
             </div>
           </div>

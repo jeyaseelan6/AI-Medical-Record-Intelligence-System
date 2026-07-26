@@ -7,6 +7,7 @@ const FileUpload = ({ patientId, onUploadSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [unrelatedWarning, setUnrelatedWarning] = useState(false);
   
   const [loadingStep, setLoadingStep] = useState(0);
   
@@ -55,6 +56,7 @@ const FileUpload = ({ patientId, onUploadSuccess }) => {
   const uploadFile = async (file) => {
     setError('');
     setSuccess(false);
+    setUnrelatedWarning(false);
     setLoading(true);
 
     const formData = new FormData();
@@ -62,19 +64,26 @@ const FileUpload = ({ patientId, onUploadSuccess }) => {
     formData.append('patientId', patientId);
 
     try {
-      await api.post('/documents/upload', formData, {
+      const res = await api.post('/documents/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
 
-      setSuccess(true);
-      if (onUploadSuccess) {
-        onUploadSuccess();
+      if (res.data.isUnrelated) {
+        setUnrelatedWarning(true);
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        }
+        // Keep warning visible for 8 seconds
+        setTimeout(() => setUnrelatedWarning(false), 8000);
+      } else {
+        setSuccess(true);
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        }
+        setTimeout(() => setSuccess(false), 3000);
       }
-      
-      // Auto-clear success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error('[Upload Error]', err.message);
       setError(err.response?.data?.message || 'Failed to process and analyze the file. Ensure it is a valid PDF or Image.');
@@ -145,6 +154,14 @@ const FileUpload = ({ patientId, onUploadSuccess }) => {
               <CheckCircle size={40} style={{ color: 'var(--color-success)' }} />
               <span className="upload-text" style={{ color: 'var(--color-success)' }}>Record Processed Successfully!</span>
               <span className="upload-hint">Chronological charts & insights have been compiled.</span>
+            </div>
+          ) : unrelatedWarning ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px' }}>
+              <AlertTriangle size={40} style={{ color: '#b45309' }} />
+              <span className="upload-text" style={{ color: '#b45309', fontWeight: 600 }}>Unrelated Document Detected!</span>
+              <span className="upload-hint" style={{ color: '#b45309', textAlign: 'center', maxWidth: '380px' }}>
+                This file is not a medical or clinical record. It has been saved but excluded from active timeline charts.
+              </span>
             </div>
           ) : (
             <>

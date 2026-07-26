@@ -162,8 +162,10 @@ export class AiService {
    */
   static async extractMedicalData(fileBuffer, mimeType, fileName = '') {
     const systemPrompt = `
-You are an expert AI medical record parser. Your job is to perform OCR on the medical document and extract information into a clean, structured JSON format.
-Analyze the document carefully. If certain information is not present, use null or an empty array. Do not guess or hallucinate details.
+You are an expert AI medical record parser. Your job is to perform OCR on the document and extract information into a clean, structured JSON format.
+
+First, determine if the document content is related to healthcare, clinical visits, medical tests, prescriptions, doctor notes, patient care, or hospital billing/records.
+If the document is completely unrelated to medicine or healthcare (for example: a grocery store receipt, an academic math exam paper, general homework, a software code listing, restaurant menus, airline boarding passes, etc.), set the field "is_unrelated_document" to true. Otherwise, set it to false.
 
 Supported document types are: "Prescription", "Lab Report", "Discharge Summary", "Medical Notes".
 Patient gender can be: "Male", "Female", "Other", or null.
@@ -171,6 +173,7 @@ Format all dates as YYYY-MM-DD (format dates ISO. If year is missing or unclear,
 
 Format the output strictly as a JSON object matching this structure:
 {
+  "is_unrelated_document": false,
   "document_type": "Prescription",
   "patient_info": {
     "name": "Priya Sharma",

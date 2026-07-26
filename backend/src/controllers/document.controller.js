@@ -60,6 +60,9 @@ export const uploadDocument = async (req, res) => {
 
     // Categorize the document based on AI extraction and filename fallback analysis
     const docType = (() => {
+      if (extracted.is_unrelated_document === true || (extracted.document_type || '').toLowerCase() === 'unrelated') {
+        return 'Unrelated';
+      }
       const name = (file.originalname || '').toLowerCase();
       const extractedType = (extracted.document_type || '').trim().toLowerCase();
       
@@ -88,67 +91,71 @@ export const uploadDocument = async (req, res) => {
         [docType, 'Completed', documentId]
       );
 
-      // B. Insert Medical Event
-      const event = extracted.event || {};
-      const eventDate = event.date || new Date().toISOString().split('T')[0];
-      const eventQuery = await client.query(
-        `INSERT INTO medical_events (patient_id, document_id, event_date, doctor_name, diagnosis, symptoms, notes) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-        [
-          patientId,
-          documentId,
-          eventDate,
-          event.doctor_name || null,
-          event.diagnosis || null,
-          event.symptoms || null,
-          event.notes || null
-        ]
-      );
-      const eventId = eventQuery.rows[0].id;
+      // B. Insert Medical Event (Only if document is relevant to clinical history)
+      if (docType !== 'Unrelated') {
+        const event = extracted.event || {};
+        const eventDate = event.date || new Date().toISOString().split('T')[0];
+        const eventQuery = await client.query(
+          `INSERT INTO medical_events (patient_id, document_id, event_date, doctor_name, diagnosis, symptoms, notes) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [
+            patientId,
+            documentId,
+            eventDate,
+            event.doctor_name || null,
+            event.diagnosis || null,
+            event.symptoms || null,
+            event.notes || null
+          ]
+        );
+        const eventId = eventQuery.rows[0].id;
 
-      // C. Insert Medications
-      const medications = extracted.medications || [];
-      for (const med of medications) {
-        if (med.name) {
-          await client.query(
-            `INSERT INTO medications (medical_event_id, medicine_name, dosage, frequency, duration) 
-             VALUES ($1, $2, $3, $4, $5)`,
-            [eventId, med.name, med.dosage || null, med.frequency || null, med.duration || null]
-          );
+        // C. Insert Medications
+        const medications = extracted.medications || [];
+        for (const med of medications) {
+          if (med.name) {
+            await client.query(
+              `INSERT INTO medications (medical_event_id, medicine_name, dosage, frequency, duration) 
+               VALUES ($1, $2, $3, $4, $5)`,
+              [eventId, med.name, med.dosage || null, med.frequency || null, med.duration || null]
+            );
+          }
         }
-      }
 
-      // D. Insert Lab Results
-      const labResults = extracted.lab_results || [];
-      for (const lab of labResults) {
-        if (lab.test_name) {
-          await client.query(
-            `INSERT INTO lab_results (medical_event_id, test_name, value, unit, normal_range) 
-             VALUES ($1, $2, $3, $4, $5)`,
-            [eventId, lab.test_name, lab.value, lab.unit || null, lab.normal_range || null]
-          );
+        // D. Insert Lab Results
+        const labResults = extracted.lab_results || [];
+        for (const lab of labResults) {
+          if (lab.test_name) {
+            await client.query(
+              `INSERT INTO lab_results (medical_event_id, test_name, value, unit, normal_range) 
+               VALUES ($1, $2, $3, $4, $5)`,
+              [eventId, lab.test_name, lab.value, lab.unit || null, lab.normal_range || null]
+            );
+          }
         }
       }
     });
 
     // 4. Generate RAG Vector Embeddings (Failsafe fallback design)
     try {
-      // Construct logical descriptive text chunk of the medical record
-      const eventData = extracted.event || {};
-      const medSummary = (extracted.medications || []).map(m => `${m.name} ${m.dosage || ''} (${m.frequency || ''})`).join(', ');
-      const labSummary = (extracted.lab_results || []).map(l => `${l.test_name}: ${l.value} ${l.unit || ''}`).join(', ');
+      // Only generate search index embeddings if the document is relevant to patient medical records
+      if (docType !== 'Unrelated') {
+        const eventData = extracted.event || {};
+        const medSummary = (extracted.medications || []).map(m => `${m.name} ${m.dosage || ''} (${m.frequency || ''})`).join(', ');
+        const labSummary = (extracted.lab_results || []).map(l => `${l.test_name}: ${l.value} ${l.unit || ''}`).join(', ');
 
-      const contentChunk = `Document: ${file.originalname}. Date: ${eventData.date || 'Unknown'}. Document Type: ${docType}. Doctor: ${eventData.doctor_name || 'N/A'}. Diagnosis: ${eventData.diagnosis || 'None'}. Symptoms: ${eventData.symptoms || 'None'}. Notes: ${eventData.notes || 'None'}. Medications: [${medSummary || 'None'}]. Vitals/Labs: [${labSummary || 'None'}].`;
+        const contentChunk = `Document: ${file.originalname}. Date: ${eventData.date || 'Unknown'}. Document Type: ${docType}. Doctor: ${eventData.doctor_name || 'N/A'}. Diagnosis: ${eventData.diagnosis || 'None'}. Symptoms: ${eventData.symptoms || 'None'}. Notes: ${eventData.notes || 'None'}. Medications: [${medSummary || 'None'}]. Vitals/Labs: [${labSummary || 'None'}].`;
 
-      const embedding = await AiService.generateEmbedding(contentChunk);
+        const embedding = await AiService.generateEmbedding(contentChunk);
 
-      // Store in vector table. Format standard float array to postgres vector bracket format [val, val, ...]
-      const vectorString = `[${embedding.join(',')}]`;
-      await query(
-        `INSERT INTO embeddings (document_id, content_chunk, embedding_vector) 
-         VALUES ($1, $2, $3::vector)`,
-        [documentId, contentChunk, vectorString]
-      );
+        // Store in vector table. Format standard float array to postgres vector bracket format [val, val, ...]
+        const vectorString = `[${embedding.join(',')}]`;
+        await query(
+          `INSERT INTO embeddings (document_id, content_chunk, embedding_vector) 
+           VALUES ($1, $2, $3::vector)`,
+          [documentId, contentChunk, vectorString]
+        );
+      }
     } catch (vectorError) {
       console.warn('[Database Warning] Vector insert bypassed. This can happen if pgvector extension is not configured locally:', vectorError.message);
     }
@@ -158,8 +165,11 @@ export const uploadDocument = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Medical document parsed, saved, and indexed successfully.',
-      documentId
+      message: docType === 'Unrelated'
+        ? 'Unrelated document detected. Saved to files but excluded from patient clinical history.'
+        : 'Medical document parsed, saved, and indexed successfully.',
+      documentId,
+      isUnrelated: docType === 'Unrelated'
     });
 
   } catch (error) {
