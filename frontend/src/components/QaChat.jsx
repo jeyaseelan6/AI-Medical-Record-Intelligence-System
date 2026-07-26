@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../context/AuthContext.jsx';
 import { Send, FileText, Check, ShieldAlert } from 'lucide-react';
 
-const QaChat = ({ patientId }) => {
+const QaChat = ({ patientId, documents = [], onViewDocument }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
@@ -154,6 +154,48 @@ const QaChat = ({ patientId }) => {
                         <FileText size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--color-primary)' }} />
                         {msg.evidence}
                       </span>
+
+                      {/* Clickable matching document badges */}
+                      {documents && documents.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                          {documents.filter(doc => {
+                            const cleanEvidence = msg.evidence.toLowerCase();
+                            const cleanName = doc.file_name.toLowerCase();
+                            const baseName = doc.file_name.split('.').slice(0, -1).join('.').toLowerCase();
+                            return cleanEvidence.includes(cleanName) || 
+                                   (baseName.length > 0 && cleanEvidence.includes(`document: ${baseName}`)) ||
+                                   (baseName.length > 0 && cleanEvidence.includes(`(document: ${baseName}.`)) ||
+                                   cleanEvidence.includes(baseName);
+                          }).map(doc => (
+                            <button
+                              key={doc.id}
+                              onClick={() => onViewDocument && onViewDocument(doc)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: 'rgba(13, 148, 136, 0.06)',
+                                border: '1px solid var(--color-primary-light)',
+                                borderRadius: '20px',
+                                padding: '4px 10px',
+                                fontSize: '11px',
+                                color: 'var(--color-primary)',
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                transition: 'all 0.2s ease',
+                                outline: 'none'
+                              }}
+                              className="btn-glass-hover"
+                              title={`Click to preview ${doc.file_name} in dialog`}
+                            >
+                              <FileText size={11} style={{ flexShrink: 0 }} />
+                              <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                View {doc.file_name}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '8px' }}>

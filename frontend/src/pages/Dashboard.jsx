@@ -522,7 +522,11 @@ const Dashboard = () => {
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
                     Ask specific questions about the patient's medical records. The assistant retrieves semantic evidence sources to reply.
                   </p>
-                  <QaChat patientId={selectedPatientId} />
+                  <QaChat 
+                    patientId={selectedPatientId} 
+                    documents={documents}
+                    onViewDocument={setPreviewDoc}
+                  />
                 </div>
               )}
 
