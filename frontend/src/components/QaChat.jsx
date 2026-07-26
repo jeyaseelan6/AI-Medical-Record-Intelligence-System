@@ -236,6 +236,26 @@ const QaChat = ({ patientId, documents = [], onViewDocument }) => {
         ))}
       </div>
 
+      {/* Permanent Medical Safety Disclaimer Banner */}
+      <div 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          padding: '8px 16px', 
+          backgroundColor: 'rgba(180, 83, 9, 0.03)', 
+          borderTop: '1px solid var(--color-border)', 
+          fontSize: '11px', 
+          color: '#b45309',
+          lineHeight: '1.4'
+        }}
+      >
+        <ShieldAlert size={14} style={{ flexShrink: 0, color: '#b45309' }} />
+        <span>
+          <strong>Notice:</strong> AI Clinical Assistant may make mistakes. Always refer to a doctor or qualified medical professional for clinical advice.
+        </span>
+      </div>
+
       {/* Input Bar */}
       <form onSubmit={handleSend} className="chat-input-area">
         <input

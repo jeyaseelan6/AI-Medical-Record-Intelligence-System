@@ -231,16 +231,45 @@ const Dashboard = () => {
               No profiles created yet.
             </div>
           ) : (
-            patients.map(p => (
-              <div
-                key={p.id}
-                className={`patient-item ${selectedPatientId === p.id ? 'active' : ''}`}
-                onClick={() => setSelectedPatientId(p.id)}
-              >
-                <User size={16} />
-                <span>{p.patient_name}</span>
-              </div>
-            ))
+            patients.map(p => {
+              const genderLower = (p.gender || '').toLowerCase();
+              const isMale = genderLower === 'male';
+              const isFemale = genderLower === 'female';
+              const genderColor = isMale ? '#3182ce' : isFemale ? '#d53f8c' : 'var(--color-text-muted)';
+              
+              return (
+                <div
+                  key={p.id}
+                  className={`patient-item ${selectedPatientId === p.id ? 'active' : ''}`}
+                  onClick={() => setSelectedPatientId(p.id)}
+                  style={{
+                    borderLeft: selectedPatientId === p.id 
+                      ? `4px solid ${genderColor}` 
+                      : `4px solid transparent`,
+                    paddingLeft: selectedPatientId === p.id ? '10px' : '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <User size={16} style={{ color: genderColor }} />
+                  <span>{p.patient_name}</span>
+                  <span 
+                    style={{ 
+                      marginLeft: 'auto', 
+                      fontSize: '10px', 
+                      padding: '2px 6px', 
+                      borderRadius: '10px', 
+                      backgroundColor: isMale ? 'rgba(49, 130, 206, 0.08)' : isFemale ? 'rgba(213, 63, 140, 0.08)' : 'rgba(148, 163, 184, 0.08)',
+                      color: genderColor,
+                      fontWeight: 600
+                    }}
+                  >
+                    {isMale ? 'M' : isFemale ? 'F' : '—'}
+                  </span>
+                </div>
+              );
+            })
           )}
 
           <button 
@@ -290,52 +319,68 @@ const Dashboard = () => {
           </div>
         ) : (
           <div>
-            {/* Patient Header Block */}
-            <div className="profile-header-card">
-              <div>
-                <h1 className="profile-title">{selectedPatient.patient_name}</h1>
-                <div className="profile-meta-text">
-                  <span>Age: {selectedPatient.age ? `${selectedPatient.age} years` : 'N/A'}</span>
-                  <span>•</span>
-                  <span>Gender: {selectedPatient.gender || 'N/A'}</span>
-                  <span>•</span>
-                  <span>ID: #{selectedPatient.id}</span>
-                </div>
-              </div>
+            {/* Patient Header Block with Gender-tailored premium gradients */}
+            {(() => {
+              const genderLower = (selectedPatient.gender || '').toLowerCase();
+              const isMale = genderLower === 'male';
+              const isFemale = genderLower === 'female';
+              const headerBackground = isMale 
+                ? 'linear-gradient(135deg, #4299e1 0%, #63b3ed 100%)' // soft medical blue
+                : isFemale 
+                ? 'linear-gradient(135deg, #ed64a6 0%, #f687b3 100%)' // soft medical pink
+                : 'linear-gradient(135deg, #0f766e 0%, #0369a1 100%)'; // default teal/blue
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '6px', 
-                    padding: '8px 12px', 
-                    fontSize: '13px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                    color: 'white',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: 'var(--radius-md)',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                    transition: 'var(--transition-fast)'
-                  }}
-                  className="btn-glass-hover"
-                  onClick={handleOpenEditModal}
+              return (
+                <div 
+                  className="profile-header-card" 
+                  style={{ background: headerBackground }}
                 >
-                  <Edit3 size={14} style={{ color: 'white' }} />
-                  <span style={{ color: 'white' }}>Edit Profile</span>
-                </button>
-                <button 
-                  className="logout-btn" 
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', fontSize: '13px', border: '1px solid #fee2e2', backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 size={14} />
-                  <span>Delete Profile</span>
-                </button>
-                <Activity size={32} style={{ opacity: 0.8 }} />
-              </div>
-            </div>
+                  <div>
+                    <h1 className="profile-title">{selectedPatient.patient_name}</h1>
+                    <div className="profile-meta-text">
+                      <span>Age: {selectedPatient.age ? `${selectedPatient.age} years` : 'N/A'}</span>
+                      <span>•</span>
+                      <span>Gender: {selectedPatient.gender || 'N/A'}</span>
+                      <span>•</span>
+                      <span>ID: #{selectedPatient.id}</span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        padding: '8px 12px', 
+                        fontSize: '13px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                        color: 'white',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        transition: 'var(--transition-fast)'
+                      }}
+                      className="btn-glass-hover"
+                      onClick={handleOpenEditModal}
+                    >
+                      <Edit3 size={14} style={{ color: 'white' }} />
+                      <span style={{ color: 'white' }}>Edit Profile</span>
+                    </button>
+                    <button 
+                      className="logout-btn" 
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', fontSize: '13px', border: '1px solid #fee2e2', backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      <Trash2 size={14} />
+                      <span>Delete Profile</span>
+                    </button>
+                    <Activity size={32} style={{ opacity: 0.8 }} />
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Workspace Tabs Navigation */}
             <div className="workspace-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', marginBottom: '24px', overflowX: 'auto', paddingBottom: '1px' }}>
