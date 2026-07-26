@@ -10,18 +10,46 @@ const QaChat = ({ patientId }) => {
   
   const chatHistoryRef = useRef(null);
 
-  // Initialize/Reset conversation when patient selection shifts
+  // Initialize/Reset conversation and load chat logs from database when patient selection shifts
   useEffect(() => {
-    setMessages([
-      {
-        sender: 'ai',
-        text: 'Hello! I am your evidence-based medical record assistant. You can ask me questions about this patient\'s treatment history, medications, diagnostics, or trends, and I will search their files for direct evidence.',
-        isSystem: true
+    const fetchChatLogs = async () => {
+      setSending(true);
+      try {
+        const res = await api.get(`/ask/history/${patientId}`);
+        const savedMessages = res.data.data;
+        
+        if (savedMessages && savedMessages.length > 0) {
+          setMessages(savedMessages);
+        } else {
+          // Fallback greeting if no messages exist in the database
+          setMessages([
+            {
+              sender: 'ai',
+              text: 'Hello! I am your evidence-based medical record assistant. You can ask me questions about this patient\'s treatment history, medications, diagnostics, or trends, and I will search their files for direct evidence.',
+              isSystem: true
+            }
+          ]);
+        }
+      } catch (err) {
+        console.error('[QA History Load Failed]', err.message);
+        // Fallback greeting on error
+        setMessages([
+          {
+            sender: 'ai',
+            text: 'Hello! I am your evidence-based medical record assistant. You can ask me questions about this patient\'s treatment history, medications, diagnostics, or trends, and I will search their files for direct evidence.',
+            isSystem: true
+          }
+        ]);
+      } finally {
+        setSending(false);
+        setInputValue('');
+        setExpandedDetails({});
       }
-    ]);
-    setInputValue('');
-    setSending(false);
-    setExpandedDetails({});
+    };
+
+    if (patientId) {
+      fetchChatLogs();
+    }
   }, [patientId]);
 
   // Autoscroll chat history to focus on fresh replies

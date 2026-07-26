@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Drop tables if they exist (clean setup)
 DROP TABLE IF EXISTS embeddings CASCADE;
+DROP TABLE IF EXISTS chat_messages CASCADE;
 DROP TABLE IF EXISTS ai_insights CASCADE;
 DROP TABLE IF EXISTS lab_results CASCADE;
 DROP TABLE IF EXISTS medications CASCADE;
@@ -95,6 +96,19 @@ CREATE TABLE IF NOT EXISTS embeddings (
     embedding_vector vector(3072)
 );
 
+-- 9. Chat Messages Table (stores patient RAG chat history)
+CREATE TABLE chat_messages (
+    id SERIAL PRIMARY KEY,
+    patient_id INTEGER REFERENCES patients(id) ON DELETE CASCADE,
+    sender VARCHAR(10) NOT NULL, -- 'user' or 'ai'
+    message_text TEXT NOT NULL,
+    evidence TEXT,
+    confidence INTEGER,
+    risk_level VARCHAR(50),
+    recommendation TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =========================================================================
 -- DATABASE OPTIMIZATION & INDEXES
 -- =========================================================================
@@ -116,3 +130,4 @@ CREATE INDEX idx_medications_event ON medications(medical_event_id);
 CREATE INDEX idx_lab_results_event ON lab_results(medical_event_id);
 CREATE INDEX idx_ai_insights_patient ON ai_insights(patient_id);
 CREATE INDEX idx_embeddings_document ON embeddings(document_id);
+CREATE INDEX idx_chat_messages_patient ON chat_messages(patient_id);
