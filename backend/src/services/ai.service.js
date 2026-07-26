@@ -1,20 +1,33 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { OpenAI } from 'openai';
+import { createRequire } from 'module';
 import dotenv from 'dotenv';
+
+const require = createRequire(import.meta.url);
+const pdf = require('pdf-parse');
 
 dotenv.config();
 
-// Ensure the application behaves safely even if the API Key is not set up yet
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.warn('[AI Warning] GEMINI_API_KEY is not defined. AI queries and clinical reasoning services will fail.');
+const provider = process.env.AI_PROVIDER || 'gemini';
+
+// Initialize Google Gemini
+const geminiKey = process.env.GEMINI_API_KEY;
+if (!geminiKey && provider === 'gemini') {
+  console.warn('[AI Warning] GEMINI_API_KEY is not defined. Gemini services will fail.');
 }
+const genAI = geminiKey ? new GoogleGenerativeAI(geminiKey) : null;
 
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// Initialize OpenAI
+const openaiKey = process.env.OPENAI_API_KEY;
+if (!openaiKey && provider === 'openai') {
+  console.warn('[AI Warning] OPENAI_API_KEY is not defined. OpenAI services will fail.');
+}
+const openaiClient = openaiKey ? new OpenAI({ apiKey: openaiKey }) : null;
 
-// Standard models to utilize
-const EXTRACT_MODEL_NAME = 'gemini-2.0-flash-lite'; // Optimized for multimodal speed & cost
-const EMBED_MODEL_NAME = 'gemini-embedding-001';  // Gemini's standard 3072-dim embedding model
-const REASON_MODEL_NAME = 'gemini-2.0-flash-lite';  // Fast reasoning model for analysis & Q&A
+// Dynamic model names config from environment variables (SOLID provider abstraction)
+const EXTRACT_MODEL_NAME = process.env.EXTRACT_MODEL_NAME || (provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.0-flash-lite');
+const EMBED_MODEL_NAME = process.env.EMBED_MODEL_NAME || (provider === 'openai' ? 'text-embedding-3-large' : 'gemini-embedding-001');
+const REASON_MODEL_NAME = process.env.REASON_MODEL_NAME || (provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.0-flash-lite');
 
 /**
  * Service orchestrating LLM logic using the Google Generative AI SDK.
@@ -81,9 +94,29 @@ export class AiService {
    * @returns {Promise<Array<number>>} 768 float array vector
    */
   static async generateEmbedding(text) {
+    if (provider === 'openai') {
+      if (!openaiClient) {
+        throw new Error('OpenAI client is not initialized. Please configure a valid OPENAI_API_KEY.');
+      }
+      try {
+        const response = await openaiClient.embeddings.create({
+          model: EMBED_MODEL_NAME,
+          input: text,
+          dimensions: 3072
+        });
+        if (!response.data || !response.data[0] || !response.data[0].embedding) {
+          throw new Error('Invalid response structure from OpenAI Embedding API.');
+        }
+        return response.data[0].embedding;
+      } catch (error) {
+        console.error('[AI Service Error] OpenAI Embedding generation failed:', error.message);
+        throw error;
+      }
+    }
+
+    // Default: Gemini
     if (!genAI) {
-      // Fallback vector for local testing if API key is missing
-      return Array(768).fill(0).map(() => Math.random());
+      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
     }
 
     try {
@@ -96,7 +129,7 @@ export class AiService {
       
       return result.embedding.values;
     } catch (error) {
-      console.error('[AI Service Error] Embedding generation failed:', error.message);
+      console.error('[AI Service Error] Gemini Embedding generation failed:', error.message);
       throw error;
     }
   }
@@ -110,21 +143,7 @@ export class AiService {
    * @returns {Promise<Object>} Clean JSON structured representation of the record
    */
   static async extractMedicalData(fileBuffer, mimeType, fileName = '') {
-    if (!genAI) {
-      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY inside the backend environment variables.');
-    }
-
-    try {
-      const model = genAI.getGenerativeModel({ model: EXTRACT_MODEL_NAME });
-      
-      const filePart = {
-        inlineData: {
-          data: fileBuffer.toString('base64'),
-          mimeType: mimeType
-        }
-      };
-
-      const systemPrompt = `
+    const systemPrompt = `
 You are an expert AI medical record parser. Your job is to perform OCR on the medical document and extract information into a clean, structured JSON format.
 Analyze the document carefully. If certain information is not present, use null or an empty array. Do not guess or hallucinate details.
 
@@ -169,6 +188,77 @@ Format the output strictly as a JSON object matching this structure:
 }
 `;
 
+    if (provider === 'openai') {
+      if (!openaiClient) {
+        throw new Error('OpenAI client is not initialized. Please configure a valid OPENAI_API_KEY.');
+      }
+      try {
+        let responseText = '';
+        
+        if (mimeType === 'application/pdf') {
+          // Parse PDF content to text representation
+          const pdfData = await pdf(fileBuffer);
+          const pdfText = pdfData.text || '';
+          
+          const response = await openaiClient.chat.completions.create({
+            model: EXTRACT_MODEL_NAME,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `Analyze the following text extracted from a PDF medical record and return structured medical details:\n\n${pdfText}` }
+            ]
+          });
+          responseText = response.choices[0].message.content;
+        } else {
+          // Process Image files via gpt-4o-mini vision capabilities
+          const base64Image = fileBuffer.toString('base64');
+          const response = await openaiClient.chat.completions.create({
+            model: EXTRACT_MODEL_NAME,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: systemPrompt },
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: 'Analyze the attached image and extract structured medical details.' },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${mimeType};base64,${base64Image}`
+                    }
+                  }
+                ]
+              }
+            ]
+          });
+          responseText = response.choices[0].message.content;
+        }
+        
+        return this.cleanJsonParse(responseText);
+      } catch (error) {
+        console.error('[AI Service Error] OpenAI document extraction failed:', error.message);
+        if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
+          throw new Error('OpenAI AI API rate limit/quota exceeded. Please try again in a few moments or configure a premium key.');
+        }
+        throw new Error(`AI record parsing failed: ${error.message}`);
+      }
+    }
+
+    // Default: Gemini
+    if (!genAI) {
+      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY inside the backend environment variables.');
+    }
+
+    try {
+      const model = genAI.getGenerativeModel({ model: EXTRACT_MODEL_NAME });
+      
+      const filePart = {
+        inlineData: {
+          data: fileBuffer.toString('base64'),
+          mimeType: mimeType
+        }
+      };
+
       const result = await model.generateContent({
         contents: [
           {
@@ -205,22 +295,11 @@ Format the output strictly as a JSON object matching this structure:
    * @returns {Promise<Array<Object>>} Array of safety and intelligence insights
    */
   static async analyzeLongitudinalInsights(events, patientInfo) {
-    if (!genAI) {
-      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
-    }
     if (events.length === 0) {
       return [];
     }
 
-    try {
-      const model = genAI.getGenerativeModel({ model: REASON_MODEL_NAME });
-      
-      const payload = {
-        patient: patientInfo,
-        history: events
-      };
-
-      const systemPrompt = `
+    const systemPrompt = `
 You are a Clinical Intelligence and Patient Safety AI. Review this patient's chronological medical records and generate evidence-based clinical insights.
 Strictly search for:
 1. Duplicate Medications: The same medicine or same drug class prescribed across different visits overlapping in dates.
@@ -241,6 +320,42 @@ Provide insights as an array of JSON objects following this exact format:
 Important: Focus only on real issues. If there are no issues, return an empty array [].
 `;
 
+    if (provider === 'openai') {
+      if (!openaiClient) {
+        throw new Error('OpenAI client is not initialized. Please configure a valid OPENAI_API_KEY.');
+      }
+      try {
+        const response = await openaiClient.chat.completions.create({
+          model: REASON_MODEL_NAME,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Patient History Data:\n${JSON.stringify({ patient: patientInfo, history: events })}` }
+          ]
+        });
+        return this.cleanJsonParse(response.choices[0].message.content);
+      } catch (error) {
+        console.error('[AI Service Error] OpenAI longitudinal analysis failed:', error.message);
+        if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
+          throw new Error('OpenAI AI API rate limit/quota exceeded for clinical analysis.');
+        }
+        throw error;
+      }
+    }
+
+    // Default: Gemini
+    if (!genAI) {
+      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
+    }
+
+    try {
+      const model = genAI.getGenerativeModel({ model: REASON_MODEL_NAME });
+      
+      const payload = {
+        patient: patientInfo,
+        history: events
+      };
+
       const result = await model.generateContent({
         contents: [
           {
@@ -257,7 +372,7 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
 
       return this.cleanJsonParse(result.response.text());
     } catch (error) {
-      console.error('[AI Service Error] Longitudinal analysis failed:', error.message);
+      console.error('[AI Service Error] Gemini longitudinal analysis failed:', error.message);
       if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
         throw new Error('Gemini AI API rate limit/quota exceeded for clinical analysis.');
       }
@@ -274,16 +389,9 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
    * @returns {Promise<Object>} Structured safety response
    */
   static async answerQuestionWithContext(question, contextChunks) {
-    if (!genAI) {
-      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
-    }
-
-    try {
-      const model = genAI.getGenerativeModel({ model: REASON_MODEL_NAME });
-      
-      const contextText = contextChunks.join('\n\n');
-      
-      const prompt = `
+    const contextText = contextChunks.join('\n\n');
+    
+    const prompt = `
 Context from Patient Medical Records:
 ${contextText}
 
@@ -304,6 +412,36 @@ Every response must be safe, explainable, and return a JSON structure:
 }
 `;
 
+    if (provider === 'openai') {
+      if (!openaiClient) {
+        throw new Error('OpenAI client is not initialized. Please configure a valid OPENAI_API_KEY.');
+      }
+      try {
+        const response = await openaiClient.chat.completions.create({
+          model: REASON_MODEL_NAME,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'user', content: prompt }
+          ]
+        });
+        return this.cleanJsonParse(response.choices[0].message.content);
+      } catch (error) {
+        console.error('[AI Service Error] OpenAI QA response generation failed:', error.message);
+        if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
+          throw new Error('OpenAI AI API rate limit/quota exceeded. Clinical Assistant is temporarily unavailable.');
+        }
+        throw new Error(`Clinical Assistant failed: ${error.message}`);
+      }
+    }
+
+    // Default: Gemini
+    if (!genAI) {
+      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
+    }
+
+    try {
+      const model = genAI.getGenerativeModel({ model: REASON_MODEL_NAME });
+      
       const result = await model.generateContent({
         contents: [
           {
@@ -320,7 +458,7 @@ Every response must be safe, explainable, and return a JSON structure:
 
       return this.cleanJsonParse(result.response.text());
     } catch (error) {
-      console.error('[AI Service Error] QA response generation failed:', error.message);
+      console.error('[AI Service Error] Gemini QA response generation failed:', error.message);
       if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
         throw new Error('Gemini AI API rate limit/quota exceeded. Clinical Assistant is temporarily unavailable.');
       }
