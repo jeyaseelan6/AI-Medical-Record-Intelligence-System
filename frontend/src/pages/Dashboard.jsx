@@ -473,6 +473,8 @@ const Dashboard = () => {
               </button>
             </div>
 
+
+
             {/* Tab Workspace Panels */}
             <div className="workspace-panel" style={{ transition: 'all 0.3s ease' }}>
               
