@@ -111,7 +111,7 @@ export class AiService {
    */
   static async extractMedicalData(fileBuffer, mimeType, fileName = '') {
     if (!genAI) {
-      return this._getMockExtractionData(fileName);
+      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY inside the backend environment variables.');
     }
 
     try {
@@ -188,9 +188,11 @@ Format the output strictly as a JSON object matching this structure:
       return this.cleanJsonParse(responseText);
 
     } catch (error) {
-      console.warn('[AI Service Warning] Multimodal document extraction failed due to API limits:', error.message);
-      console.warn('[AI Service Info] Activating Mock extraction fallback to prevent system crash.');
-      return this._getMockExtractionData(fileName);
+      console.error('[AI Service Error] Multimodal document extraction failed:', error.message);
+      if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
+        throw new Error('Gemini AI API rate limit/quota exceeded. Please try again in a few moments or use a premium API key.');
+      }
+      throw new Error(`AI record parsing failed: ${error.message}`);
     }
   }
 
@@ -203,8 +205,11 @@ Format the output strictly as a JSON object matching this structure:
    * @returns {Promise<Array<Object>>} Array of safety and intelligence insights
    */
   static async analyzeLongitudinalInsights(events, patientInfo) {
-    if (!genAI || events.length === 0) {
-      return this._getMockInsightsData();
+    if (!genAI) {
+      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
+    }
+    if (events.length === 0) {
+      return [];
     }
 
     try {
@@ -253,7 +258,10 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
       return this.cleanJsonParse(result.response.text());
     } catch (error) {
       console.error('[AI Service Error] Longitudinal analysis failed:', error.message);
-      return this._getMockInsightsData();
+      if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
+        throw new Error('Gemini AI API rate limit/quota exceeded for clinical analysis.');
+      }
+      throw error;
     }
   }
 
@@ -267,13 +275,7 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
    */
   static async answerQuestionWithContext(question, contextChunks) {
     if (!genAI) {
-      return {
-        answer: "This is a mock response since the Gemini API key is missing. It looks like you're asking about the patient's medications. Paracetamol was prescribed on 2019-10-03.",
-        evidence: "Sample Document Mock Data",
-        confidence: 90,
-        risk_level: "Low",
-        recommendation: "Always discuss medication history with your treating physician."
-      };
+      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
     }
 
     try {
@@ -318,14 +320,11 @@ Every response must be safe, explainable, and return a JSON structure:
 
       return this.cleanJsonParse(result.response.text());
     } catch (error) {
-      console.warn('[AI Service Warning] QA response generation failed due to API limits:', error.message);
-      return {
-        answer: "The Gemini API quota has been temporarily exceeded. Here is a simulated response based on the patient history: Paracetamol was prescribed on 2019-10-03 and 2020-01-02.",
-        evidence: "Clinical Index Fallback",
-        confidence: 100,
-        risk_level: "Low",
-        recommendation: "Please configure a valid GEMINI_API_KEY inside backend/.env with active quota to run live AI queries."
-      };
+      console.error('[AI Service Error] QA response generation failed:', error.message);
+      if (error.message.includes('429') || error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit')) {
+        throw new Error('Gemini AI API rate limit/quota exceeded. Clinical Assistant is temporarily unavailable.');
+      }
+      throw new Error(`Clinical Assistant failed: ${error.message}`);
     }
   }
 

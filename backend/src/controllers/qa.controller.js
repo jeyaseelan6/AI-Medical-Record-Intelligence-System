@@ -101,7 +101,7 @@ export const askQuestion = async (req, res) => {
     console.error('[QA Controller Error] Question answering failed:', error.message);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error while resolving question.'
+      message: error.message || 'Internal server error while resolving question.'
     });
   }
 };

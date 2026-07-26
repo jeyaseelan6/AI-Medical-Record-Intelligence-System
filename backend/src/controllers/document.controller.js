@@ -157,7 +157,7 @@ export const uploadDocument = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: 'Failed to process document. Please try again.'
+      message: error.message || 'Failed to process document. Please try again.'
     });
   }
 };
