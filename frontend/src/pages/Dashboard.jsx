@@ -31,6 +31,13 @@ const Dashboard = () => {
   useEffect(() => {
     setImageZoomed(false);
   }, [previewDoc]);
+
+  // Auto-collapse sidebar on mobile screens on initial load
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarCollapsed(true);
+    }
+  }, []);
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState('Male');
   const [editPatientName, setEditPatientName] = useState('');

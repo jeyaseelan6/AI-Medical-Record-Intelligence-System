@@ -52,6 +52,11 @@
   padding: 0;
 }
 
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text-main);
@@ -193,10 +198,13 @@ a:hover {
   color: var(--color-text-muted);
 }
 
-/* Dashboard Skeleton */
+/* Dashboard Skeleton (Mobile-First Base) */
 .dashboard-layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .sidebar {
@@ -209,7 +217,8 @@ a:hover {
   height: 100vh;
   left: 0;
   top: 0;
-  z-index: 10;
+  z-index: 999;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-header {
@@ -321,9 +330,13 @@ a:hover {
 
 .main-content {
   flex: 1;
-  margin-left: 260px;
-  padding: 40px;
-  max-width: 1400px;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 16px;
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* Empty Workspace State */
@@ -451,8 +464,8 @@ a:hover {
 /* Vitals and Trends Panels */
 .trends-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
   margin-bottom: 24px;
 }
 
@@ -794,11 +807,12 @@ a:hover {
   background: linear-gradient(135deg, #0f766e 0%, #0369a1 100%);
   color: white;
   border-radius: var(--radius-lg);
-  padding: 30px;
+  padding: 20px;
   margin-bottom: 30px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
   box-shadow: var(--shadow-md);
 }
 
@@ -812,7 +826,9 @@ a:hover {
   font-size: 14px;
   opacity: 0.9;
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
 }
 
 /* Modal dialog custom styles */
@@ -927,6 +943,111 @@ a:hover {
     transform: scale(1.3);
     opacity: 1;
     box-shadow: 0 0 10px var(--color-primary);
+  }
+}
+
+/* =========================================================================
+   MOBILE-FIRST NAVIGATION TABS LAYOUT DECORATION
+   ========================================================================= */
+.workspace-tabs {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workspace-tab-btn {
+  flex: 1 1 calc(50% - 6px);
+  text-align: center;
+  justify-content: center;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+/* =========================================================================
+   DESKTOP OVERRIDES - LAYOUT TRANSITIONS (769px+)
+   ========================================================================= */
+
+@media (min-width: 769px) {
+  /* 1. Reset Skeleton to side-by-side */
+  .dashboard-layout {
+    flex-direction: row;
+  }
+
+  /* 2. Dock sidebar natively */
+  .sidebar {
+    z-index: 10;
+    box-shadow: none;
+  }
+
+  /* 3. Restore main content sidebar gap padding */
+  .main-content {
+    margin-left: 260px;
+    padding: 40px;
+    max-width: 1400px;
+    width: auto;
+    overflow-x: visible;
+  }
+
+  /* 4. Restore double column cards */
+  .dashboard-grid {
+    grid-template-columns: 7fr 5fr;
+  }
+
+  /* 5. Set vitals cards to wider default columns */
+  .trends-container {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  /* 6. Restore profile header card to horizontal spacing */
+  .profile-header-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 30px;
+  }
+
+  .profile-meta-text {
+    flex-direction: row;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .profile-meta-text span:nth-child(even) {
+    display: inline;
+  }
+
+  .profile-header-card > div:last-child {
+    flex-direction: row;
+    width: auto;
+    gap: 12px;
+  }
+
+  .profile-header-card > div:last-child button {
+    width: auto;
+  }
+
+  /* 7. Reset workspace tabs behavior */
+  .workspace-tabs {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .workspace-tab-btn {
+    flex: none;
+    text-align: left;
+    padding: 12px 18px;
+    font-size: 13.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Mobile-first specific tiny screen overrides */
+  .trends-container {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-card {
+    padding: 24px;
   }
 }
 
