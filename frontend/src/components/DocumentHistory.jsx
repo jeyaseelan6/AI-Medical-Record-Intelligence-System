@@ -121,10 +121,9 @@ const DocumentHistory = ({ documents, loading, onViewDocument }) => {
                   </span>
                 ) : (
                   <span className={getStatusBadgeClass(doc.processing_status)} style={{ padding: '2px 8px', fontSize: '10px' }}>
-                    Ready
+                    Uploaded
                   </span>
                 )}
-                <ExternalLink size={14} style={{ color: 'var(--color-text-light)' }} />
               </>
             )}
 

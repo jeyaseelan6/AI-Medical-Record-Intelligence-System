@@ -26,7 +26,8 @@ export const getPatientTimeline = async (req, res) => {
 
     // 2. Query timeline with pre-aggregated json results
     const timelineQuery = await query(
-      `SELECT me.id, me.event_date, me.doctor_name, me.diagnosis, me.symptoms, me.notes, me.document_id, d.file_name as document_name,
+      `SELECT me.id, me.event_date, me.doctor_name, me.diagnosis, me.symptoms, me.notes, me.document_id, 
+       d.file_name as document_name, d.document_type as document_category,
        COALESCE(
          (SELECT json_agg(m) FROM (
            SELECT id, medicine_name, dosage, frequency, duration 

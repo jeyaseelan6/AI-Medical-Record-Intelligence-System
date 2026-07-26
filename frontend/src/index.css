@@ -3,26 +3,26 @@
    ========================================================================= */
 
 :root {
-  /* Medical Teal & Trust Blue Brand Colors */
-  --color-primary: #0d9488;
-  --color-primary-hover: #0f766e;
-  --color-primary-light: #e6f4f1;
-  --color-secondary: #0284c7;
+  /* Vibrant Premium Teal & Trust Sky Blue Brand Colors */
+  --color-primary: #14b8a6;
+  --color-primary-hover: #0d9488;
+  --color-primary-light: #f0fdfa;
+  --color-secondary: #0ea5e9;
   
   /* Status Colors */
   --color-success: #10b981;
-  --color-success-bg: #ecfdf5;
+  --color-success-bg: #f0fdf4;
   --color-warning: #f59e0b;
-  --color-warning-bg: #fffbeb;
-  --color-danger: #ef4444;
-  --color-danger-bg: #fef2f2;
+  --color-warning-bg: #fffbe6;
+  --color-danger: #f43f5e; /* Sleek Rose danger instead of flat red */
+  --color-danger-bg: #fff1f2;
   
-  /* Neutral Color Scale */
+  /* Neutral Color Scale (Slate/Zinc blend) */
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
   --color-border: #e2e8f0;
   --color-text-main: #0f172a;
-  --color-text-muted: #64748b;
+  --color-text-muted: #475569; /* Slate 600 (better contrast) */
   --color-text-light: #94a3b8;
   
   /* Fonts */
@@ -33,7 +33,7 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.07);
-  --shadow-glow: 0 0 15px rgba(13, 148, 136, 0.15);
+  --shadow-glow: 0 0 15px rgba(20, 184, 166, 0.15);
   
   /* Radius */
   --radius-sm: 6px;
@@ -98,7 +98,7 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 10% 20%, rgba(13, 148, 136, 0.06) 0%, rgba(2, 132, 199, 0.04) 90.1%);
+  background: linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 50%, #f5f3ff 100%);
   padding: 24px;
 }
 
@@ -261,8 +261,10 @@ a:hover {
 
 .patient-item.active {
   background-color: var(--color-primary-light);
-  color: var(--color-primary);
-  font-weight: 500;
+  color: var(--color-primary-hover);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-weight: 600;
 }
 
 .sidebar-footer {

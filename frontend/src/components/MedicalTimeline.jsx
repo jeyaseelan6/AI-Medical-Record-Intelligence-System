@@ -67,23 +67,47 @@ const MedicalTimeline = ({ timeline }) => {
                 </div>
               )}
 
-              <div className="timeline-pills">
-                {/* Renders Medications */}
-                {meds && meds.map((med, idx) => (
-                  <span key={idx} className="timeline-pill med" title={`Dosage: ${med.dosage || 'N/A'}, Frequency: ${med.frequency || 'N/A'}, Duration: ${med.duration || 'N/A'}`}>
-                    <Pill size={12} />
-                    <span>{med.medicine_name}</span>
-                    {med.dosage && <span style={{ opacity: 0.7 }}>({med.dosage})</span>}
-                  </span>
-                ))}
+              {/* Organized clinical logs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px' }}>
+                {/* Medications section */}
+                {meds && meds.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                      <Pill size={12} style={{ color: 'var(--color-success)' }} />
+                      <span>Prescribed Medications</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {meds.map((med, idx) => (
+                        <span key={idx} className="timeline-pill med" style={{ margin: 0 }} title={`Dosage: ${med.dosage || 'N/A'}, Frequency: ${med.frequency || 'N/A'}, Duration: ${med.duration || 'N/A'}`}>
+                          <span>{med.medicine_name}</span>
+                          {med.dosage && <span style={{ opacity: 0.7 }}>({med.dosage})</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                {/* Renders Lab Values */}
-                {labs && labs.map((lab, idx) => (
-                  <span key={idx} className="timeline-pill lab" title={`Normal: ${lab.normal_range || 'N/A'}`}>
-                    <Activity size={12} />
-                    <span>{lab.test_name}: {lab.value} {lab.unit || ''}</span>
-                  </span>
-                ))}
+                {/* Diagnostics / Labs section */}
+                {labs && labs.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                      <Activity size={12} style={{ color: 'var(--color-primary)' }} />
+                      <span>Diagnostics & Lab Orders</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {labs.map((lab, idx) => {
+                        const cleanValue = (lab.value || '').trim();
+                        // If lab value is empty or null, just show the test name (no trailing colon)
+                        const showValue = cleanValue && cleanValue !== null && cleanValue !== '';
+                        return (
+                          <span key={idx} className="timeline-pill lab" style={{ margin: 0 }} title={`Normal: ${lab.normal_range || 'N/A'}`}>
+                            <span>{lab.test_name}{showValue ? `: ${cleanValue} ${lab.unit || ''}` : ''}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {event.document_name && (
@@ -94,11 +118,27 @@ const MedicalTimeline = ({ timeline }) => {
                   borderTop: '1px dashed var(--color-border)',
                   paddingTop: '8px',
                   display: 'flex',
+                  flexWrap: 'wrap',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '8px'
                 }}>
-                  <span>Source Record:</span>
-                  <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{event.document_name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Source Record:</span>
+                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{event.document_name}</span>
+                  </div>
+                  {event.document_category && (
+                    <span style={{ 
+                      backgroundColor: 'rgba(13, 148, 136, 0.06)', 
+                      color: 'var(--color-primary)', 
+                      border: '1px solid rgba(13, 148, 136, 0.15)',
+                      padding: '1px 8px', 
+                      borderRadius: '12px',
+                      fontSize: '10px',
+                      fontWeight: 600
+                    }}>
+                      {event.document_category}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
