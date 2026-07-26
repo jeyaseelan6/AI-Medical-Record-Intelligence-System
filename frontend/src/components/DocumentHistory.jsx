@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileText, Image, ExternalLink, RefreshCw } from 'lucide-react';
+import { API_URL } from '../context/AuthContext.jsx';
 
 const DocumentHistory = ({ documents, loading, onViewDocument }) => {
   
@@ -17,7 +18,7 @@ const DocumentHistory = ({ documents, loading, onViewDocument }) => {
     if (onViewDocument) {
       onViewDocument(doc);
     } else {
-      window.open(`http://localhost:5000${doc.file_url}`, '_blank');
+      window.open(`${API_URL}${doc.file_url}`, '_blank');
     }
   };
 

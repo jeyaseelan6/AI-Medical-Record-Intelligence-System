@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth, api } from '../context/AuthContext.jsx';
+import { useAuth, api, API_URL } from '../context/AuthContext.jsx';
 import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import FileUpload from '../components/FileUpload.jsx';
 import MedicalTimeline from '../components/MedicalTimeline.jsx';
@@ -754,7 +754,7 @@ const Dashboard = () => {
             }}>
               {previewDoc.file_name.toLowerCase().endsWith('.pdf') ? (
                 <iframe 
-                  src={`http://localhost:5000${previewDoc.file_url}`} 
+                  src={`${API_URL}${previewDoc.file_url}`} 
                   width="100%" 
                   height="600px" 
                   style={{ border: 'none', borderRadius: 'var(--radius-xs)' }}
@@ -762,7 +762,7 @@ const Dashboard = () => {
                 />
               ) : (
                 <img 
-                  src={`http://localhost:5000${previewDoc.file_url}`} 
+                  src={`${API_URL}${previewDoc.file_url}`} 
                   alt={previewDoc.file_name} 
                   style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--radius-xs)' }}
                 />
