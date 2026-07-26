@@ -2,6 +2,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { OpenAI } from 'openai';
 import { createRequire } from 'module';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
@@ -24,10 +26,26 @@ if (!openaiKey && provider === 'openai') {
 }
 const openaiClient = openaiKey ? new OpenAI({ apiKey: openaiKey }) : null;
 
-// Dynamic model names config from environment variables (SOLID provider abstraction)
-const EXTRACT_MODEL_NAME = process.env.EXTRACT_MODEL_NAME || (provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.0-flash-lite');
-const EMBED_MODEL_NAME = process.env.EMBED_MODEL_NAME || (provider === 'openai' ? 'text-embedding-3-large' : 'gemini-embedding-001');
-const REASON_MODEL_NAME = process.env.REASON_MODEL_NAME || (provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.0-flash-lite');
+// Resolve default configuration parameters dynamically from external JSON mapping
+const configPath = path.resolve('src/config/ai-models.json');
+let modelDefaults = {
+  openai: { extract: 'gpt-4o-mini', embed: 'text-embedding-3-large', reason: 'gpt-4o-mini' },
+  gemini: { extract: 'gemini-2.0-flash-lite', embed: 'gemini-embedding-001', reason: 'gemini-2.0-flash-lite' }
+};
+
+try {
+  if (fs.existsSync(configPath)) {
+    modelDefaults = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+} catch (configErr) {
+  console.warn('[AI Config Warning] Failed to read models config file, using fallback definitions:', configErr.message);
+}
+
+const activeDefaults = modelDefaults[provider] || modelDefaults.gemini;
+
+const EXTRACT_MODEL_NAME = process.env.EXTRACT_MODEL_NAME || activeDefaults.extract;
+const EMBED_MODEL_NAME = process.env.EMBED_MODEL_NAME || activeDefaults.embed;
+const REASON_MODEL_NAME = process.env.REASON_MODEL_NAME || activeDefaults.reason;
 
 /**
  * Service orchestrating LLM logic using the Google Generative AI SDK.

@@ -1,0 +1,12 @@
+{
+  "openai": {
+    "extract": "gpt-4o-mini",
+    "embed": "text-embedding-3-large",
+    "reason": "gpt-4o-mini"
+  },
+  "gemini": {
+    "extract": "gemini-2.0-flash-lite",
+    "embed": "gemini-embedding-001",
+    "reason": "gemini-2.0-flash-lite"
+  }
+}
