@@ -54,6 +54,34 @@ const REASON_MODEL_NAME = process.env.REASON_MODEL_NAME || activeDefaults.reason
 export class AiService {
 
   /**
+   * Universal PDF parser helper that supports legacy functional pdf-parse
+   * as well as modern class-based pdf-parse v2+ exports.
+   */
+  static async parsePdfText(fileBuffer) {
+    if (typeof pdf === 'function') {
+      const data = await pdf(fileBuffer);
+      return data.text || '';
+    }
+    if (pdf && typeof pdf.PDFParse === 'function') {
+      const parser = new pdf.PDFParse(new Uint8Array(fileBuffer));
+      const result = await parser.getText();
+      if (typeof parser.destroy === 'function') {
+        await parser.destroy();
+      }
+      return result.text || '';
+    }
+    if (pdf && pdf.default && typeof pdf.default.PDFParse === 'function') {
+      const parser = new pdf.default.PDFParse(new Uint8Array(fileBuffer));
+      const result = await parser.getText();
+      if (typeof parser.destroy === 'function') {
+        await parser.destroy();
+      }
+      return result.text || '';
+    }
+    throw new Error('PDF parsing library was imported but no compatible parsing method was detected.');
+  }
+
+  /**
    * Helper utility to scrub markdown delimiters, code blocks,
    * or notes before attempting JSON parsing.
    */
@@ -218,8 +246,7 @@ Format the output strictly as a JSON object matching this structure:
         
         if (mimeType === 'application/pdf') {
           // Parse PDF content to text representation
-          const pdfData = await pdf(fileBuffer);
-          const pdfText = pdfData.text || '';
+          const pdfText = await AiService.parsePdfText(fileBuffer);
           
           const response = await openaiClient.chat.completions.create({
             model: EXTRACT_MODEL_NAME,
