@@ -1,5 +1,5 @@
 import { query } from '../config/db.js';
-import AiService from '../services/ai.service.js';
+import { AiService } from '../services/ai.service.js';
 
 /**
  * InsightController
