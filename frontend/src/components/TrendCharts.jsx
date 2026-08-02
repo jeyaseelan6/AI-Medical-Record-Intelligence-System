@@ -83,16 +83,14 @@ const TrendCharts = ({ timeline }) => {
           groups[normalizedName] = [];
         }
 
-        // Avoid adding duplicate points on the exact same day
-        const dayExists = groups[normalizedName].some(pt => pt.date === dateFormatted && pt.val === numVal);
-        if (!dayExists) {
-          groups[normalizedName].push({
-            date: dateFormatted,
-            val: numVal,
-            unit: lab.unit || '',
-            display: `${numVal}${lab.unit || ''}`
-          });
-        }
+        // Keep all points chronologically to allow plotting, making dates unique by appending a reference index
+        groups[normalizedName].push({
+          date: `${dateFormatted} (Ref #${event.id})`,
+          displayDate: dateFormatted,
+          val: numVal,
+          unit: lab.unit || '',
+          display: `${numVal}${lab.unit || ''}`
+        });
       });
     });
 
@@ -157,16 +155,16 @@ const TrendCharts = ({ timeline }) => {
           {/* Chart Canvas / Single Point Card */}
           {activeData.length > 1 ? (
             <div style={{ width: '100%', height: 200, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                  <XAxis dataKey="date" stroke="var(--color-text-light)" />
+                  <XAxis dataKey="date" stroke="var(--color-text-light)" tickFormatter={(tick) => tick.split(' (Ref')[0]} />
                   <YAxis 
                     domain={selectedMetric === 'Temperature' ? [35, 41] : ['auto', 'auto']} 
                     stroke="var(--color-text-light)" 
@@ -179,12 +177,16 @@ const TrendCharts = ({ timeline }) => {
                       boxShadow: 'var(--shadow-md)',
                       fontSize: '12px'
                     }}
+                    labelFormatter={(label, items) => {
+                      const item = items[0]?.payload;
+                      return item ? `Date: ${item.displayDate}` : label;
+                    }}
                     formatter={(value, name, props) => [`${value} ${props.payload.unit || ''}`, selectedMetric]}
                   />
                   <Area 
                     type="monotone" 
                     dataKey="val" 
-                    stroke={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} 
+                    stroke={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} 
                     strokeWidth={2}
                     fillOpacity={1} 
                     fill="url(#colorVal)" 
