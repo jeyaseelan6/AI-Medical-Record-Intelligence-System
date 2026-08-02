@@ -120,94 +120,92 @@ const TrendCharts = ({ timeline }) => {
     }
   }, [metricKeys, selectedMetric]);
 
-  // Render empty state if no numeric trend values exist
-  if (metricKeys.length === 0) {
-    return (
-      <div style={{ padding: '24px 12px' }}>
-        <div className="alert-box alert-info">
-          <Info size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div>
-            <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px' }}>Vitals Trends</strong>
-            <span style={{ fontSize: '12.5px', opacity: 0.9 }}>
-              No numeric vital entries parsed from records. 
-              Vitals values (e.g. Temperature, Weight, Blood Sugar, or Hemoglobin) extracted from prescription files or lab reports will chart here.
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const activeData = groupedData[selectedMetric] || [];
 
   return (
     <div>
-      {/* Dynamic Tab Selector */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
-        {metricKeys.map((key) => {
-          const firstPoint = groupedData[key][0];
-          const unitLabel = firstPoint && firstPoint.unit ? ` (${firstPoint.unit})` : '';
-          const isActive = selectedMetric === key;
-          
-          return (
-            <button
-              key={key}
-              className={`btn-secondary ${isActive ? 'active' : ''}`}
-              style={{ 
-                fontSize: '12.5px', 
-                padding: '6px 14px',
-                backgroundColor: isActive ? 'var(--color-primary-light)' : 'var(--color-surface)',
-                color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
-                fontWeight: isActive ? '600' : '400',
-                borderRadius: '20px'
-              }}
-              onClick={() => setSelectedMetric(key)}
-            >
-              {key}{unitLabel}
-            </button>
-          );
-        })}
-      </div>
+      {/* Dynamic Tab Selector & Chart Canvas (Only if vitals keys exist) */}
+      {metricKeys.length > 0 ? (
+        <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+            {metricKeys.map((key) => {
+              const firstPoint = groupedData[key][0];
+              const unitLabel = firstPoint && firstPoint.unit ? ` (${firstPoint.unit})` : '';
+              const isActive = selectedMetric === key;
+              
+              return (
+                <button
+                  key={key}
+                  className={`btn-secondary ${isActive ? 'active' : ''}`}
+                  style={{ 
+                    fontSize: '12.5px', 
+                    padding: '6px 14px',
+                    backgroundColor: isActive ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
+                    fontWeight: isActive ? '600' : '400',
+                    borderRadius: '20px'
+                  }}
+                  onClick={() => setSelectedMetric(key)}
+                >
+                  {key}{unitLabel}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Chart Canvas */}
-      {activeData.length > 0 && (
-        <div style={{ width: '100%', height: 200, fontSize: '11px', color: 'var(--color-text-muted)' }}>
-          <ResponsiveContainer>
-            <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} stopOpacity={0.25}/>
-                  <stop offset="95%" stopColor={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} stopOpacity={0.0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="date" stroke="var(--color-text-light)" />
-              <YAxis 
-                domain={selectedMetric === 'Temperature' ? [35, 41] : ['auto', 'auto']} 
-                stroke="var(--color-text-light)" 
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'var(--color-surface)', 
-                  borderColor: 'var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  boxShadow: 'var(--shadow-md)',
-                  fontSize: '12px'
-                }}
-                formatter={(value, name, props) => [`${value} ${props.payload.unit || ''}`, selectedMetric]}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="val" 
-                stroke={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} 
-                strokeWidth={2}
-                fillOpacity={1} 
-                fill="url(#colorVal)" 
-                dot={{ r: 4, strokeWidth: 1 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {/* Chart Canvas */}
+          {activeData.length > 0 && (
+            <div style={{ width: '100%', height: 200, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+              <ResponsiveContainer>
+                <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                  <XAxis dataKey="date" stroke="var(--color-text-light)" />
+                  <YAxis 
+                    domain={selectedMetric === 'Temperature' ? [35, 41] : ['auto', 'auto']} 
+                    stroke="var(--color-text-light)" 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'var(--color-surface)', 
+                      borderColor: 'var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      boxShadow: 'var(--shadow-md)',
+                      fontSize: '12px'
+                    }}
+                    formatter={(value, name, props) => [`${value} ${props.payload.unit || ''}`, selectedMetric]}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="val" 
+                    stroke={selectedMetric === 'Temperature' ? 'var(--color-danger)' : 'var(--color-primary)'} 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#colorVal)" 
+                    dot={{ r: 4, strokeWidth: 1 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ marginBottom: '20px' }}>
+          <div className="alert-box alert-info" style={{ margin: '0' }}>
+            <Info size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px' }}>Vitals Trends Chart</strong>
+              <span style={{ fontSize: '12.5px', opacity: 0.9 }}>
+                No numeric vital measurements (such as Temperature, Weight, Blood Sugar, or Hemoglobin) were found in this patient's uploaded documents.
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
