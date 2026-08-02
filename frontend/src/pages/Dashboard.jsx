@@ -800,7 +800,7 @@ const Dashboard = () => {
             }}>
               {previewDoc.file_name.toLowerCase().endsWith('.pdf') ? (
                 <iframe 
-                  src={`${API_URL}${previewDoc.file_url}`} 
+                  src={previewDoc.file_url.startsWith('http') ? previewDoc.file_url : `${API_URL}${previewDoc.file_url}`} 
                   width="100%" 
                   height="600px" 
                   style={{ border: 'none', borderRadius: 'var(--radius-xs)' }}
@@ -817,7 +817,7 @@ const Dashboard = () => {
                   onClick={() => setImageZoomed(!imageZoomed)}
                 >
                   <img 
-                    src={`${API_URL}${previewDoc.file_url}`} 
+                    src={previewDoc.file_url.startsWith('http') ? previewDoc.file_url : `${API_URL}${previewDoc.file_url}`} 
                     alt={previewDoc.file_name} 
                     style={{ 
                       maxWidth: '100%', 

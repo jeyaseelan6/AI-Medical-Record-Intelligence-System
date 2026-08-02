@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 import { query, transaction } from '../config/db.js';
 import { AiService } from '../services/ai.service.js';
 
@@ -44,8 +45,36 @@ export const uploadDocument = async (req, res) => {
       });
     }
 
-    // 2. Insert document metadata as 'Processing'
-    const fileUrl = `/uploads/${file.filename}`;
+    // Read local file buffer into memory first (for subsequent AI pipeline)
+    const fileBuffer = fs.readFileSync(file.path);
+
+    // 2. Upload the file to Cloudinary (if configured) or fallback to local disk
+    let fileUrl = '';
+    const isCloudinaryConfigured = !!process.env.CLOUDINARY_URL;
+
+    if (isCloudinaryConfigured) {
+      try {
+        const uploadResult = await cloudinary.uploader.upload(file.path, {
+          folder: 'med-ai',
+          resource_type: 'auto'
+        });
+        fileUrl = uploadResult.secure_url;
+
+        // Cleanup local disk immediately after successful Cloudinary upload
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      } catch (cloudinaryErr) {
+        console.error('[Cloudinary Upload Error] Falling back to local storage:', cloudinaryErr.message);
+        // Fallback to local server static folder path
+        fileUrl = `/uploads/${file.filename}`;
+      }
+    } else {
+      // Local storage path fallback
+      fileUrl = `/uploads/${file.filename}`;
+    }
+
+    // 3. Insert document metadata as 'Processing'
     const docQuery = await query(
       `INSERT INTO documents (patient_id, file_name, file_url, document_type, processing_status) 
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
@@ -53,9 +82,7 @@ export const uploadDocument = async (req, res) => {
     );
     const documentId = docQuery.rows[0].id;
 
-    // Execute AI pipeline asynchronously or synchronously? 
-    // For local demo reliability and immediate dashboard feedback, we run synchronously.
-    const fileBuffer = fs.readFileSync(file.path);
+    // Execute AI pipeline on the memory buffer
     const extracted = await AiService.extractMedicalData(fileBuffer, file.mimetype, file.originalname);
 
     // Categorize the document based on AI extraction and filename fallback analysis
@@ -319,15 +346,46 @@ export const deleteUnrelatedDocument = async (req, res) => {
       });
     }
 
-    // 4. Delete the physical file from backend uploads directory
-    try {
-      const fileName = path.basename(doc.file_url);
-      const filePath = path.resolve('uploads', fileName);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+    // 4. Delete the physical file (from Cloudinary or local disk)
+    if (doc.file_url && doc.file_url.includes('cloudinary.com')) {
+      try {
+        const getCloudinaryPublicId = (url) => {
+          const parts = url.split('/upload/');
+          if (parts.length < 2) return null;
+          let publicIdWithExt = parts[1];
+          // Strip version segment (e.g. "v1625068213/") if present
+          if (publicIdWithExt.startsWith('v')) {
+            const slashIndex = publicIdWithExt.indexOf('/');
+            if (slashIndex !== -1) {
+              publicIdWithExt = publicIdWithExt.substring(slashIndex + 1);
+            }
+          }
+          // Remove extension
+          const dotIndex = publicIdWithExt.lastIndexOf('.');
+          if (dotIndex !== -1) {
+            return publicIdWithExt.substring(0, dotIndex);
+          }
+          return publicIdWithExt;
+        };
+
+        const publicId = getCloudinaryPublicId(doc.file_url);
+        if (publicId) {
+          await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+        }
+      } catch (cloudErr) {
+        console.warn('[Cloudinary Warning] Failed to delete file from Cloudinary:', cloudErr.message);
       }
-    } catch (fsErr) {
-      console.warn('[FS Warning] Failed to delete unrelated file from uploads folder:', fsErr.message);
+    } else {
+      // Legacy local file cleanup
+      try {
+        const fileName = path.basename(doc.file_url);
+        const filePath = path.resolve('uploads', fileName);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (fsErr) {
+        console.warn('[FS Warning] Failed to delete unrelated file from uploads folder:', fsErr.message);
+      }
     }
 
     // 5. Delete document record from database

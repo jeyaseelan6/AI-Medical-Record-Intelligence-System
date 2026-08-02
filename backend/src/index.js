@@ -1,7 +1,7 @@
+import './prestart.js';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import dotenv from 'dotenv';
 
 // Import secure routes
 import authRoutes from './routes/auth.routes.js';
@@ -10,9 +10,6 @@ import documentRoutes from './routes/document.routes.js';
 import timelineRoutes from './routes/timeline.routes.js';
 import insightRoutes from './routes/insight.routes.js';
 import qaRoutes from './routes/qa.routes.js';
-
-// Load config settings
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

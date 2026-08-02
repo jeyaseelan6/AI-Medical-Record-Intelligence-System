@@ -18,7 +18,8 @@ const DocumentHistory = ({ documents, loading, onViewDocument, onDeleteDocument 
     if (onViewDocument) {
       onViewDocument(doc);
     } else {
-      window.open(`${API_URL}${doc.file_url}`, '_blank');
+      const fullUrl = doc.file_url.startsWith('http') ? doc.file_url : `${API_URL}${doc.file_url}`;
+      window.open(fullUrl, '_blank');
     }
   };
 
