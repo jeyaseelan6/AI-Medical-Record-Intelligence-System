@@ -309,68 +309,76 @@ const TrendCharts = ({ timeline, patientId }) => {
               </div>
             </div>
 
-            {/* Middle Section: Vitals Projections List */}
-            {forecast.forecast_metrics && forecast.forecast_metrics.length > 0 && (
-              <div>
-                <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '8px', fontFamily: 'var(--font-display)' }}>
-                  Projected Vital Trajectories
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {forecast.forecast_metrics.map((item, idx) => {
-                    const trendColors = {
-                      'Improving': { bg: 'rgba(16, 185, 129, 0.08)', text: 'var(--color-success)', border: 'rgba(16, 185, 129, 0.2)' },
-                      'Stable': { bg: 'rgba(14, 165, 233, 0.08)', text: 'var(--color-secondary)', border: 'rgba(14, 165, 233, 0.2)' },
-                      'Declining': { bg: 'rgba(244, 63, 94, 0.08)', text: 'var(--color-danger)', border: 'rgba(244, 63, 94, 0.2)' },
-                      'Risk of Elevation': { bg: 'rgba(245, 158, 11, 0.08)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' }
-                    };
-                    const colorStyles = trendColors[item.projected_trend] || { bg: 'rgba(148, 163, 184, 0.08)', text: 'var(--color-text-muted)', border: 'var(--color-border)' };
+            {/* Middle Section: Vitals Projections List (Filtered to hide insufficient data) */}
+            {(() => {
+              const visibleMetrics = (forecast.forecast_metrics || []).filter(
+                item => (item.projected_trend || '').toLowerCase() !== 'insufficient data'
+              );
 
-                    return (
-                      <div 
-                        key={idx} 
-                        style={{ 
-                          display: 'flex', 
-                          flexWrap: 'wrap', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          padding: '10px 14px', 
-                          backgroundColor: 'var(--color-bg)', 
-                          border: '1px solid var(--color-border)', 
-                          borderRadius: 'var(--radius-sm)',
-                          gap: '10px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
-                            {item.metric}
-                          </span>
-                          <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontFamily: 'var(--font-body)' }}>
-                            Current: {item.current_status || 'N/A'}
-                          </span>
-                        </div>
+              if (visibleMetrics.length === 0) return null;
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <span style={{ 
-                            fontSize: '11px', 
-                            fontWeight: 600, 
-                            padding: '2px 8px', 
-                            borderRadius: '12px',
-                            backgroundColor: colorStyles.bg,
-                            color: colorStyles.text,
-                            border: `1px solid ${colorStyles.border}`
-                          }}>
-                            {item.projected_trend}
-                          </span>
-                          <span style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-body)' }}>
-                            {item.rationale}
-                          </span>
+              return (
+                <div>
+                  <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '8px', fontFamily: 'var(--font-display)' }}>
+                    Projected Vital Trajectories
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {visibleMetrics.map((item, idx) => {
+                      const trendColors = {
+                        'Improving': { bg: 'rgba(16, 185, 129, 0.08)', text: 'var(--color-success)', border: 'rgba(16, 185, 129, 0.2)' },
+                        'Stable': { bg: 'rgba(14, 165, 233, 0.08)', text: 'var(--color-secondary)', border: 'rgba(14, 165, 233, 0.2)' },
+                        'Declining': { bg: 'rgba(244, 63, 94, 0.08)', text: 'var(--color-danger)', border: 'rgba(244, 63, 94, 0.2)' },
+                        'Risk of Elevation': { bg: 'rgba(245, 158, 11, 0.08)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' }
+                      };
+                      const colorStyles = trendColors[item.projected_trend] || { bg: 'rgba(148, 163, 184, 0.08)', text: 'var(--color-text-muted)', border: 'var(--color-border)' };
+
+                      return (
+                        <div 
+                          key={idx} 
+                          style={{ 
+                            display: 'flex', 
+                            flexWrap: 'wrap', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between',
+                            padding: '10px 14px', 
+                            backgroundColor: 'var(--color-bg)', 
+                            border: '1px solid var(--color-border)', 
+                            borderRadius: 'var(--radius-sm)',
+                            gap: '10px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
+                              {item.metric}
+                            </span>
+                            <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontFamily: 'var(--font-body)' }}>
+                              Current: {item.current_status || 'N/A'}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <span style={{ 
+                              fontSize: '11px', 
+                              fontWeight: 600, 
+                              padding: '2px 8px', 
+                              borderRadius: '12px',
+                              backgroundColor: colorStyles.bg,
+                              color: colorStyles.text,
+                              border: `1px solid ${colorStyles.border}`
+                            }}>
+                              {item.projected_trend}
+                            </span>
+                            <span style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-body)' }}>
+                              {item.rationale}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Bottom Row: Ethics Safety Disclaimer */}
             <div className="alert-box alert-warning" style={{ margin: '0', fontSize: '11.5px', padding: '10px 12px' }}>
