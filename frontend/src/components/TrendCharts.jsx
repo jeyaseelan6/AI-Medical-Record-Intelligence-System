@@ -3,7 +3,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { Info, TrendingUp, Activity, Heart, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
 import { api } from '../context/AuthContext.jsx';
 
-const TrendCharts = ({ timeline }) => {
+const TrendCharts = ({ timeline, patientId }) => {
   const [selectedMetric, setSelectedMetric] = useState('');
   const [forecast, setForecast] = useState(null);
   const [loadingForecast, setLoadingForecast] = useState(false);
@@ -11,13 +11,10 @@ const TrendCharts = ({ timeline }) => {
 
   useEffect(() => {
     const fetchForecast = async () => {
-      if (!timeline || timeline.length === 0) {
+      if (!patientId || !timeline || timeline.length === 0) {
         setForecast(null);
         return;
       }
-      
-      const patientId = timeline[0].patient_id;
-      if (!patientId) return;
 
       setLoadingForecast(true);
       setErrorForecast(null);
