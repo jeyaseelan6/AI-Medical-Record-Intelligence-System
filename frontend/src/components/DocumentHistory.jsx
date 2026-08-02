@@ -23,12 +23,10 @@ const DocumentHistory = ({ documents, loading, onViewDocument, onDeleteDocument 
     }
   };
 
-  const handleDelete = (e, docId) => {
+  const handleDelete = (e, doc) => {
     e.stopPropagation(); // Avoid triggering document viewer modal
-    if (window.confirm("Are you sure you want to delete this unrelated document? This will remove the file permanently.")) {
-      if (onDeleteDocument) {
-        onDeleteDocument(docId);
-      }
+    if (onDeleteDocument) {
+      onDeleteDocument(doc);
     }
   };
 
@@ -112,52 +110,50 @@ const DocumentHistory = ({ documents, loading, onViewDocument, onDeleteDocument 
             )}
             
             {doc.processing_status === 'Completed' && (
-              <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {doc.document_type === 'Unrelated' ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ 
-                      backgroundColor: 'rgba(180, 83, 9, 0.08)', 
-                      color: '#b45309', 
-                      border: '1px solid rgba(180, 83, 9, 0.2)',
-                      padding: '2px 8px', 
-                      borderRadius: '20px',
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}>
-                      <AlertTriangle size={10} />
-                      Unrelated
-                    </span>
-                    {onDeleteDocument && (
-                      <button
-                        onClick={(e) => handleDelete(e, doc.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#ef4444',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 'var(--radius-sm)',
-                          transition: 'all 0.2s'
-                        }}
-                        title="Delete unrelated document"
-                        className="btn-danger-hover-mini"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
+                  <span style={{ 
+                    backgroundColor: 'rgba(180, 83, 9, 0.08)', 
+                    color: '#b45309', 
+                    border: '1px solid rgba(180, 83, 9, 0.2)',
+                    padding: '2px 8px', 
+                    borderRadius: '20px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <AlertTriangle size={10} />
+                    Unrelated
+                  </span>
                 ) : (
                   <span className={getStatusBadgeClass(doc.processing_status)} style={{ padding: '2px 8px', fontSize: '10px' }}>
                     Uploaded
                   </span>
                 )}
-              </>
+                {onDeleteDocument && (
+                  <button
+                    onClick={(e) => handleDelete(e, doc)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 'var(--radius-sm)',
+                      transition: 'all 0.2s'
+                    }}
+                    title="Delete document and clinical context"
+                    className="btn-danger-hover-mini"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
             )}
 
             {doc.processing_status === 'Failed' && (

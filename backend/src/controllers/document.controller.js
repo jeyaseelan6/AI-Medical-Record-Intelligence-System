@@ -303,10 +303,10 @@ export const runPatientAnalysis = async (patientId) => {
 };
 
 /**
- * Deletes an unrelated document from the database and disk storage.
+ * Deletes any document from the database and storage, cleansing RAG and timeline contexts.
  * Endpoint: DELETE /api/documents/:documentId
  */
-export const deleteUnrelatedDocument = async (req, res) => {
+export const deleteDocument = async (req, res) => {
   const { documentId } = req.params;
   const userId = req.user.id;
 
@@ -329,6 +329,7 @@ export const deleteUnrelatedDocument = async (req, res) => {
     }
 
     const doc = docQuery.rows[0];
+    const patientId = doc.patient_id;
 
     // 2. Validate patient profile ownership
     if (doc.user_id !== userId) {
@@ -338,13 +339,9 @@ export const deleteUnrelatedDocument = async (req, res) => {
       });
     }
 
-    // 3. ENFORCE: Only unrelated documents can be deleted via this endpoint
-    if (doc.document_type !== 'Unrelated') {
-      return res.status(400).json({
-        success: false,
-        message: 'Only unrelated documents can be removed.'
-      });
-    }
+    // 3. WIPE CLINICAL CONTEXT: Delete related medical events
+    // This will cascade to delete associated medications and lab_results automatically
+    await query('DELETE FROM medical_events WHERE document_id = $1', [documentId]);
 
     // 4. Delete the physical file (from Cloudinary or local disk)
     if (doc.file_url && doc.file_url.includes('cloudinary.com')) {
@@ -384,23 +381,27 @@ export const deleteUnrelatedDocument = async (req, res) => {
           fs.unlinkSync(filePath);
         }
       } catch (fsErr) {
-        console.warn('[FS Warning] Failed to delete unrelated file from uploads folder:', fsErr.message);
+        console.warn('[FS Warning] Failed to delete file from uploads folder:', fsErr.message);
       }
     }
 
-    // 5. Delete document record from database
+    // 5. WIPE RAG INDEX: Delete document record
+    // This automatically cascade-deletes the embeddings from the embeddings table
     await query('DELETE FROM documents WHERE id = $1', [documentId]);
+
+    // 6. RE-ANALYZE: Run patient longitudinal audit to clean up safety alerts & charts
+    await runPatientAnalysis(patientId);
 
     return res.status(200).json({
       success: true,
-      message: 'Unrelated document removed successfully.'
+      message: 'Document and its clinical context removed successfully.'
     });
 
   } catch (error) {
-    console.error('[Document Controller Error] Failed to delete unrelated document:', error.message);
+    console.error('[Document Controller Error] Failed to delete document:', error.message);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error while removing unrelated document.'
+      message: 'Internal server error while removing document.'
     });
   }
 };
@@ -408,5 +409,5 @@ export const deleteUnrelatedDocument = async (req, res) => {
 export default {
   uploadDocument,
   getDocuments,
-  deleteUnrelatedDocument
+  deleteDocument
 };

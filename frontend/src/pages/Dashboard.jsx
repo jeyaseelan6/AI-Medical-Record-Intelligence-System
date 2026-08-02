@@ -25,6 +25,7 @@ const Dashboard = () => {
   const [previewDoc, setPreviewDoc] = useState(null);
   const [imageZoomed, setImageZoomed] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [docToDelete, setDocToDelete] = useState(null);
   const [newPatientName, setNewPatientName] = useState('');
 
   // Reset zoom state when previewed document changes
@@ -538,7 +539,7 @@ const Dashboard = () => {
                         documents={documents} 
                         loading={loadingDocuments} 
                         onViewDocument={setPreviewDoc} 
-                        onDeleteDocument={handleDeleteDocument} 
+                        onDeleteDocument={setDocToDelete} 
                       />
                     </div>
                   </div>
@@ -914,6 +915,68 @@ const Dashboard = () => {
               >
                 <Trash2 size={15} />
                 Delete Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Document Confirmation Modal Overlay */}
+      {docToDelete && (
+        <div className="modal-overlay" onClick={() => setDocToDelete(null)}>
+          <div className="modal-content" style={{ maxWidth: '450px', width: '90%', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: '#dc2626' }}>
+                <AlertTriangle size={20} />
+                <span>Remove Medical Document</span>
+              </h2>
+              <button className="modal-close" style={{ fontSize: '32px', color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }} onClick={() => setDocToDelete(null)}>×</button>
+            </div>
+            
+            <div style={{ fontSize: '13.5px', color: 'var(--color-text-main)', lineHeight: '1.5', marginBottom: '24px' }}>
+              Are you sure you want to permanently remove <strong>{docToDelete.file_name}</strong>?
+              
+              <div className="alert-box alert-danger" style={{ marginTop: '12px' }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span style={{ fontSize: '12.5px' }}>
+                  This will permanently remove the file and erase its extracted medications, laboratory tests, and clinical history entries.
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                style={{ flex: 1, padding: '10px', fontSize: '13.5px', borderRadius: 'var(--radius-md)', cursor: 'pointer', border: '1px solid var(--color-border)' }}
+                onClick={() => setDocToDelete(null)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '6px', 
+                  padding: '10px', 
+                  fontSize: '13.5px', 
+                  border: '1px solid #b91c1c', 
+                  backgroundColor: '#dc2626', 
+                  color: 'white', 
+                  borderRadius: 'var(--radius-md)', 
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+                onClick={() => {
+                  handleDeleteDocument(docToDelete.id);
+                  setDocToDelete(null);
+                }}
+              >
+                <Trash2 size={15} />
+                Delete File
               </button>
             </div>
           </div>

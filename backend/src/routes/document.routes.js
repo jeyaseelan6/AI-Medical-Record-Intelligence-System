@@ -1,5 +1,5 @@
 import express from 'express';
-import { uploadDocument, getDocuments, deleteUnrelatedDocument } from '../controllers/document.controller.js';
+import { uploadDocument, getDocuments, deleteDocument } from '../controllers/document.controller.js';
 import requireAuth from '../middleware/auth.middleware.js';
 import upload from '../middleware/upload.middleware.js';
 
@@ -11,6 +11,6 @@ router.use(requireAuth);
 // Handles multipart form uploading (expecting field name 'file')
 router.post('/upload', upload.single('file'), uploadDocument);
 router.get('/:patientId', getDocuments);
-router.delete('/:documentId', deleteUnrelatedDocument);
+router.delete('/:documentId', deleteDocument);
 
 export default router;
