@@ -34,7 +34,11 @@ Standard EHRs rely on static rules (e.g. flagging a drug-to-drug allergy if pre-
     *   *Active Ingredient Duplication*: "Paracetamol prescribed under different brand names in separate visits."
     *   *Lab Metric Deviations*: Spotting trends (e.g., rising creatinine levels) across visits.
 
-### 3. Dynamic RAG with Grounded Citations
+### 3. AI-Native Predictive Health Forecasting
+Instead of hardcoded clinical medical equations, MedAI leverages LLM pattern analysis to project a patient's 30-day vital trajectories and cardiovascular risk thresholds based strictly on chronological lab logs and medication updates.
+*   **Innovation**: It generates trajectory status tags ("Improving", "Stable", "Risk of Elevation") with textual rationale and highlights clinical risk categories (Low, Moderate, High) with strict safety disclaimers, making it an active prognostic tool.
+
+### 4. Dynamic RAG with Grounded Citations
 MedAI does not answer queries using general web knowledge. The clinical QA system is strictly bounded by the patient's database files using `pgvector` Cosine Similarity.
 *   **Innovation**: Answers are grounded by direct, clickable file preview dialog buttons. Clinicians can verify the AI's claims against the original scan instantly without leaving the chat interface.
 
