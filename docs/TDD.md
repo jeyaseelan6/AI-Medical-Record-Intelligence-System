@@ -71,9 +71,10 @@ The AI is not a chatbot wrapper. The AI acts as a multi-stage intelligence pipel
 *   **Access Isolation**: Verified using a central `requireAuth` middleware before any query execution.
 
 ### **Module 2: Medical Document Management & Loader UI**
-*   **Upload Processing**: `multer` middleware stores files locally under the `/uploads` static directory.
+*   **Upload Processing**: Accepts snaps and uploads. Files are sent directly to **Cloudinary** (folder `med-ai`) and the temporary disk file is deleted. If Cloudinary is unconfigured or a network error occurs, the pipeline automatically falls back to local disk storage in the `/uploads` static directory.
 *   **Ingestion Animation**: An animated laser overlay (`.scanner-laser`) and cycling steps (*"OCR Extraction..."* ➔ *"Vision Parsing..."*) prevent UI locking.
 *   **Categorization Resolver**: Classifies files using AI. If ambiguous, the backend scans filenames for clinical matches (`rx`, `lab`, `discharge`), fallback defaulting to `Medical Notes`.
+*   **Deletion Handler**: Supports deleting any file, which automatically cleanses associated database events, medications, lab values, and unlinks file footprints.
 
 ### **Module 3: AI Document Processing Pipeline**
 *   **Multi-Modal OCR & Vision**:
@@ -103,13 +104,19 @@ The AI is not a chatbot wrapper. The AI acts as a multi-stage intelligence pipel
     ORDER BY distance ASC
     LIMIT 5;
     ```
+*   **Citations**: Embeds document details (`file_name`, `uploaded_at`) alongside vector chunks to provide evidence-based source visibility.
+*   **Conversational Memory**: Stores and feeds the patient's recent 6 messages into the LLM system prompt to support relative follow-up queries.
 *   **Dialog Badging**: Embeds document references as clickable badges, launching the dashboard's preview modal box.
 
 ### **Module 8: QA Safety Disclaimer Banner**
-*   **Logic**: Displays a warm amber banner (`#b45309`) directly above the chat assistant's input field: *"Notice: AI Clinical Assistant may make mistakes. Always refer to a doctor..."* to comply with medical validation best practices.
+*   **Logic**: Displays a semantic alert warning banner directly above the chat assistant's input field: *"Clinical Notice: AI Clinical Assistant can make mistakes. Always refer to a doctor..."* to comply with medical validation guidelines.
+*   **Warning Triggers**: If the AI assessment shows a "Medium" or "High" risk, or if the model confidence score drops below 80%, a prominent consultation banner is injected in the assistant's response.
 
 ### **Module 9: Database Chat History Persistence**
 *   **Logic**: User prompts and matched AI answers are saved to the `chat_messages` table, and restored on load.
+
+### **Module 10: Delete Document Modal UI**
+*   **Logic**: Replaced browser standard confirmation popups with a custom styled React modal overlay. Presents clear, non-technical warning notifications prior to triggering clinical record removal.
 
 ---
 
@@ -208,6 +215,7 @@ The AI is not a chatbot wrapper. The AI acts as a multi-stage intelligence pipel
 ### **Document Ingestion**
 *   `POST /api/documents/upload`: Accepts snaps and uploads attachments.
 *   `GET /api/documents/:patientId`: Lists documents.
+*   `DELETE /api/documents/:documentId`: Removes the document, unlinks Cloudinary media assets, drops matching timeline event records, and wipes vector RAG search embeddings.
 
 ### **Medical Timeline & Insights**
 *   `GET /api/timeline/:patientId`: Resolves chronological medical lists.

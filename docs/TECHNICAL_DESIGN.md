@@ -62,6 +62,22 @@ const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
 ```
 
+### 4. Boot-time Configuration Hook (`prestart.js`)
+To prevent configuration variables from causing startup crashes, `prestart.js` runs at the absolute entry point of the backend node process. It intercepts `dotenv.config()` and automatically deletes invalid placeholder schemes (such as `your_cloudinary_url_here`) or malformed strings from `process.env.CLOUDINARY_URL`. This allows the server to boot up safely and gracefully fall back to local disk storage.
+
+### 5. Cloud Storage (Cloudinary Integration) & Fallbacks
+The system natively stores uploaded PDFs and images inside Cloudinary cloud storage under folder `med-ai` when configured:
+*   **Direct Upload**: Files are sent to Cloudinary, and the backend unlinks (deletes) the temporary local multer storage immediately to eliminate local filesystem footprint.
+*   **Resilient Fallback**: If Cloudinary is unconfigured or a network error occurs, the uploader catches the exception and falls back to saving and serving files locally from the `/uploads` directory.
+*   **Absolute URL Detection**: The React frontend dynamically checks if the file path is a local route or a Cloudinary URL (starts with `http`), avoiding local domain prepending for cloud previews.
+
+### 6. General Document & Context Deletion
+Deleting any medical document performs a complete data purge:
+1.  **Clinical Context Wipe**: Deletes associated `medical_events` from the database, which automatically cascades to delete all extracted medications and lab results.
+2.  **RAG Index Wipe**: Deletes the `documents` row, which triggers PostgreSQL `ON DELETE CASCADE` to delete all vector chunks in the `embeddings` table.
+3.  **Storage Wipe**: Unlinks the local file from disk or calls Cloudinary destroy using the parsed asset `public_id`.
+4.  **Recalculation**: Re-runs the patient's longitudinal safety checks to clear obsolete insights cards or duplicate alerts.
+
 ---
 
 ## 🎨 Frontend UX & Visual State Performance
@@ -69,3 +85,4 @@ const pdf = require('pdf-parse');
 1.  **State Recovery (Auto-Persist Chat logs)**: Chat messages are saved to the database. Switching patient contexts or reloading tabs recovers logs instantly, preventing context loss.
 2.  **Adaptive Grouping Metrics (Trend Visualization)**: Rather than hardcoding fixed graph canvases (like temperature/weight), `TrendCharts.jsx` traverses patient timeline history, groups metrics, and auto-generates tabs on-the-fly.
 3.  **Visual Processing Indicators**: Upload events trigger keyframe scanning lasers and status steps, preventing the UI from locking up during model extractions.
+4.  **Premium Custom Modals**: Replaced native browser confirmation boxes with custom overlays and warning panels matching the application theme.
