@@ -154,8 +154,8 @@ const TrendCharts = ({ timeline }) => {
             })}
           </div>
 
-          {/* Chart Canvas */}
-          {activeData.length > 0 && (
+          {/* Chart Canvas / Single Point Card */}
+          {activeData.length > 1 ? (
             <div style={{ width: '100%', height: 200, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
               <ResponsiveContainer>
                 <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -193,7 +193,31 @@ const TrendCharts = ({ timeline }) => {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          )}
+          ) : activeData.length === 1 ? (
+            <div style={{ 
+              backgroundColor: 'var(--color-bg)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px 20px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Single Vital Reading Recorded
+                </span>
+                <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-text-main)', marginTop: '4px', fontFamily: 'var(--font-display)' }}>
+                  {activeData[0].val} {activeData[0].unit}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)' }}>
+                Recorded on: <strong>{activeData[0].date}</strong>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : (
         <div style={{ marginBottom: '20px' }}>
