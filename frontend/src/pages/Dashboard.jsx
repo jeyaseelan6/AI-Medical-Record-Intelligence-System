@@ -101,6 +101,20 @@ const Dashboard = () => {
     }
   };
 
+  const handleDeleteDocument = async (documentId) => {
+    try {
+      const response = await api.delete(`/documents/${documentId}`);
+      if (response.data && response.data.success) {
+        if (selectedPatientId) {
+          fetchPatientDetails(selectedPatientId);
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting document:', err.message);
+      alert(err.response?.data?.message || 'Failed to remove unrelated document.');
+    }
+  };
+
   useEffect(() => {
     if (selectedPatientId) {
       fetchPatientDetails(selectedPatientId);
@@ -520,7 +534,12 @@ const Dashboard = () => {
                       <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '8px' }}>
                         Click on a ready record to view its original scanned document/prescription.
                       </p>
-                      <DocumentHistory documents={documents} loading={loadingDocuments} onViewDocument={setPreviewDoc} />
+                      <DocumentHistory 
+                        documents={documents} 
+                        loading={loadingDocuments} 
+                        onViewDocument={setPreviewDoc} 
+                        onDeleteDocument={handleDeleteDocument} 
+                      />
                     </div>
                   </div>
 
@@ -854,9 +873,12 @@ const Dashboard = () => {
             
             <div style={{ fontSize: '13.5px', color: 'var(--color-text-main)', lineHeight: '1.5', marginBottom: '24px' }}>
               Are you sure you want to permanently delete the medical profile of <strong>{selectedPatient.patient_name}</strong>?
-              <p style={{ marginTop: '12px', fontSize: '12.5px', color: '#b91c1c', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
-                This action is irreversible and will delete all associated prescriptions, timelines, charts, and RAG search indices.
-              </p>
+              <div className="alert-box alert-danger" style={{ marginTop: '12px' }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span style={{ fontSize: '12.5px' }}>
+                  This action is irreversible and will delete all associated prescriptions, timelines, charts, and RAG search indices.
+                </span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>

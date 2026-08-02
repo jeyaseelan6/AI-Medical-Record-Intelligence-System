@@ -275,7 +275,80 @@ export const runPatientAnalysis = async (patientId) => {
   }
 };
 
+/**
+ * Deletes an unrelated document from the database and disk storage.
+ * Endpoint: DELETE /api/documents/:documentId
+ */
+export const deleteUnrelatedDocument = async (req, res) => {
+  const { documentId } = req.params;
+  const userId = req.user.id;
+
+  if (!documentId) {
+    return res.status(400).json({ success: false, message: 'Document ID is required.' });
+  }
+
+  try {
+    // 1. Retrieve the document and check ownership
+    const docQuery = await query(
+      `SELECT d.*, p.user_id 
+       FROM documents d
+       JOIN patients p ON p.id = d.patient_id
+       WHERE d.id = $1`,
+      [documentId]
+    );
+
+    if (docQuery.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document not found.' });
+    }
+
+    const doc = docQuery.rows[0];
+
+    // 2. Validate patient profile ownership
+    if (doc.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Unauthorized patient workspace.'
+      });
+    }
+
+    // 3. ENFORCE: Only unrelated documents can be deleted via this endpoint
+    if (doc.document_type !== 'Unrelated') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only unrelated documents can be removed.'
+      });
+    }
+
+    // 4. Delete the physical file from backend uploads directory
+    try {
+      const fileName = path.basename(doc.file_url);
+      const filePath = path.resolve('uploads', fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (fsErr) {
+      console.warn('[FS Warning] Failed to delete unrelated file from uploads folder:', fsErr.message);
+    }
+
+    // 5. Delete document record from database
+    await query('DELETE FROM documents WHERE id = $1', [documentId]);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Unrelated document removed successfully.'
+    });
+
+  } catch (error) {
+    console.error('[Document Controller Error] Failed to delete unrelated document:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while removing unrelated document.'
+    });
+  }
+};
+
 export default {
   uploadDocument,
-  getDocuments
+  getDocuments,
+  deleteUnrelatedDocument
 };

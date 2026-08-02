@@ -44,18 +44,21 @@ export const askQuestion = async (req, res) => {
       const questionEmbedding = await AiService.generateEmbedding(question);
       const vectorString = `[${questionEmbedding.join(',')}]`;
 
-      // SQL JOIN optimized to query embeddings belonging ONLY to the patient's uploaded documents
+      // SQL JOIN optimized to query embeddings belonging ONLY to the patient's uploaded documents (including file names and types)
       const vectorSearch = await query(
-        `SELECT e.content_chunk, (e.embedding_vector <=> $1::vector) as distance
+        `SELECT e.content_chunk, d.file_name, d.document_type, d.uploaded_at, (e.embedding_vector <=> $1::vector) as distance
          FROM embeddings e
          JOIN documents d ON d.id = e.document_id
          WHERE d.patient_id = $2
          ORDER BY distance ASC
-         LIMIT 5`,
+         LIMIT 6`,
         [vectorString, patientId]
       );
       
-      contextChunks = vectorSearch.rows.map(row => row.content_chunk);
+      contextChunks = vectorSearch.rows.map(row => {
+        const docDate = row.uploaded_at ? new Date(row.uploaded_at).toLocaleDateString('en-US') : 'N/A';
+        return `[Source Document: ${row.file_name} (${row.document_type || 'Unclassified'}), Uploaded: ${docDate}]\nContent:\n${row.content_chunk}`;
+      });
     } catch (vectorError) {
       console.warn('[QA Engine Warning] pgvector search failed or not configured, using fallback query:', vectorError.message);
     }
@@ -78,7 +81,8 @@ export const askQuestion = async (req, res) => {
       contextChunks = fallbackQuery.rows.map(row => {
         const medsStr = row.medications.map(m => `${m.medicine_name} ${m.dosage || ''}`).join(', ');
         const labsStr = row.lab_results.map(l => `${l.test_name}: ${l.value} ${l.unit || ''}`).join(', ');
-        return `Date: ${row.event_date}. Doctor: ${row.doctor_name || 'N/A'}. Diagnosis: ${row.diagnosis || 'None'}. Symptoms: ${row.symptoms || 'None'}. Notes: ${row.notes || 'None'}. Medications: [${medsStr || 'None'}]. Labs: [${labsStr || 'None'}].`;
+        const eventDate = row.event_date ? new Date(row.event_date).toLocaleDateString('en-US') : 'N/A';
+        return `[Source: Timeline Event on ${eventDate}, Diagnosed by Dr. ${row.doctor_name || 'N/A'}]\nDiagnosis: ${row.diagnosis || 'None'}. Symptoms: ${row.symptoms || 'None'}. Notes: ${row.notes || 'None'}. Medications: [${medsStr || 'None'}]. Lab Results: [${labsStr || 'None'}].`;
       });
     }
 
@@ -112,7 +116,18 @@ export const askQuestion = async (req, res) => {
       });
     }
 
-    const qaResult = await AiService.answerQuestionWithContext(question, contextChunks);
+    // Fetch recent chat history to support follow-up questions and conversational memory
+    const historyQuery = await query(
+      `SELECT sender, message_text 
+       FROM chat_messages 
+       WHERE patient_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT 6`,
+      [patientId]
+    );
+    const conversationHistory = historyQuery.rows.reverse();
+
+    const qaResult = await AiService.answerQuestionWithContext(question, contextChunks, conversationHistory);
 
     // 6. Persist the AI's response to the database
     await query(

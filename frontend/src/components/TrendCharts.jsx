@@ -90,14 +90,14 @@ const TrendCharts = ({ timeline }) => {
   if (metricKeys.length === 0) {
     return (
       <div style={{ padding: '24px 12px' }}>
-        <div style={{ display: 'flex', gap: '10px', padding: '14px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-          <Info size={16} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--color-secondary)' }} />
+        <div className="alert-box alert-info">
+          <Info size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
-            <strong>Vitals Trends</strong>
-            <p style={{ marginTop: '2px', fontSize: '12px' }}>
+            <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px' }}>Vitals Trends</strong>
+            <span style={{ fontSize: '12.5px', opacity: 0.9 }}>
               No numeric vital entries parsed from records. 
               Vitals values (e.g. Temperature, Weight, Blood Sugar, or Hemoglobin) extracted from prescription files or lab reports will chart here.
-            </p>
+            </span>
           </div>
         </div>
       </div>

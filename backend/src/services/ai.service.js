@@ -452,27 +452,42 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
    * @param {Array<string>} contextChunks - Content chunks fetched from pgvector similarity search
    * @returns {Promise<Object>} Structured safety response
    */
-  static async answerQuestionWithContext(question, contextChunks) {
+  static async answerQuestionWithContext(question, contextChunks, conversationHistory = []) {
     const contextText = contextChunks.join('\n\n');
     
+    let conversationText = 'No previous messages.';
+    if (conversationHistory && conversationHistory.length > 0) {
+      conversationText = conversationHistory
+        .map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text || m.message_text}`)
+        .join('\n');
+    }
+    
     const prompt = `
+You are an intelligent, evidence-based clinical assistant. Answer the user's question by reasoning across the provided patient medical records, including comparing details across different documents (like checking new prescriptions against allergies noted in older reports).
+
 Context from Patient Medical Records:
 ${contextText}
 
-Question:
+Conversation History (for resolving follow-up questions and maintaining context):
+${conversationText}
+
+Current Question:
 ${question}
 
 Instructions:
-You are an intelligent, evidence-based clinical assistant. Answer the user's question using ONLY the provided medical records context.
-If the answer cannot be found in the context, state: "I cannot find this information in the uploaded records." and do not speculate.
+1. Answer the current question using ONLY the provided medical records context.
+2. If the answer cannot be found in the context, set "answer" to "I cannot find this information in the uploaded records." and set "confidence" to 0. Do not speculate or diagnose.
+3. Never present the answer as a direct clinical diagnosis. The system must never self-diagnose or prescribe.
+4. Assess the safety risk of the question and answer (e.g., questions about drug interactions, allergies, dosage changes, or critical lab alerts should be classed as "High" or "Medium" risk).
+5. For ANY answer that is flagged as "Medium" or "High" risk, or where your confidence score is low (less than 80%), you MUST clearly write a recommendation to consult a doctor, physician, or pharmacist in the "recommendation" field.
 
-Every response must be safe, explainable, and return a JSON structure:
+Return a JSON structure:
 {
-  "answer": "Clear, concise direct answer to the question.",
-  "evidence": "Direct quote or document source with date verifying the answer.",
-  "confidence": Integer from 0 to 100 representing your extraction confidence,
-  "risk_level": "Low" | "Medium" | "High" (Assess if the query relates to critical medications, allergies, or high-risk findings),
-  "recommendation": "Clinical advice or note (e.g. 'Please confirm with Dr. Smith regarding the dosage mismatch.')"
+  "answer": "Clear, concise direct answer to the question, formulated as informational clinical assistant guidance, NOT a direct diagnosis.",
+  "evidence": "Direct quote or document source with date verifying the answer (e.g. 'Allergy noted in prescription_xyz.pdf from Sept 2025').",
+  "confidence": Integer from 0 to 100 representing your reasoning confidence,
+  "risk_level": "Low" | "Medium" | "High",
+  "recommendation": "Clinical warning/recommendation. MUST recommend consulting a doctor, practitioner, or pharmacist if risk is Medium/High or confidence < 80."
 }
 `;
 

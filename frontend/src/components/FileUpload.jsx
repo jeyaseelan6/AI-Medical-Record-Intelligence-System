@@ -156,10 +156,10 @@ const FileUpload = ({ patientId, onUploadSuccess }) => {
               <span className="upload-hint">Chronological charts & insights have been compiled.</span>
             </div>
           ) : unrelatedWarning ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '12px' }}>
-              <AlertTriangle size={40} style={{ color: '#b45309' }} />
-              <span className="upload-text" style={{ color: '#b45309', fontWeight: 600 }}>Unrelated Document Detected!</span>
-              <span className="upload-hint" style={{ color: '#b45309', textAlign: 'center', maxWidth: '380px' }}>
+            <div className="alert-box alert-warning" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '20px', width: '100%' }}>
+              <AlertTriangle size={32} />
+              <span style={{ fontSize: '15px', fontWeight: 600 }}>Unrelated Document Detected!</span>
+              <span style={{ fontSize: '12.5px', textAlign: 'center', maxWidth: '380px', opacity: 0.9 }}>
                 This file is not a medical or clinical record. It has been saved but excluded from active timeline charts.
               </span>
             </div>
@@ -174,14 +174,11 @@ const FileUpload = ({ patientId, onUploadSuccess }) => {
       </form>
 
       {error && (
-        <div 
-          className="insight-alert-item duplicate_medication" 
-          style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}
-        >
-          <AlertTriangle size={18} />
+        <div className="alert-box alert-danger" style={{ marginTop: '16px' }}>
+          <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
-            <div className="insight-desc">Parsing Error</div>
-            <div className="insight-evidence">{error}</div>
+            <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px' }}>Parsing Error</strong>
+            <span style={{ fontSize: '12.5px', opacity: 0.95 }}>{error}</span>
           </div>
         </div>
       )}

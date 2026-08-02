@@ -37,14 +37,14 @@ const InsightCards = ({ insights }) => {
 
   if (!insights || insights.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '30px 20px', backgroundColor: 'var(--color-success-bg)', border: '1px solid #d1fae5', borderRadius: 'var(--radius-md)', color: '#065f46' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600 }}>
+      <div className="alert-box alert-success" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
           <Heart size={18} fill="currentColor" />
           <span>Patient Logs Secure & Consistent</span>
         </div>
-        <p style={{ fontSize: '12px', marginTop: '6px', opacity: 0.9 }}>
+        <span style={{ fontSize: '12.5px', marginTop: '6px', opacity: 0.9 }}>
           No duplicate medications, dosage mismatches, or patient identity conflicts detected in uploaded history.
-        </p>
+        </span>
       </div>
     );
   }

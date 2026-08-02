@@ -1,8 +1,8 @@
 import React from 'react';
-import { FileText, Image, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
+import { FileText, Image, ExternalLink, RefreshCw, AlertTriangle, Trash2 } from 'lucide-react';
 import { API_URL } from '../context/AuthContext.jsx';
 
-const DocumentHistory = ({ documents, loading, onViewDocument }) => {
+const DocumentHistory = ({ documents, loading, onViewDocument, onDeleteDocument }) => {
   
   // Choose correct icon based on document filename/extension
   const getFileIcon = (fileName) => {
@@ -19,6 +19,15 @@ const DocumentHistory = ({ documents, loading, onViewDocument }) => {
       onViewDocument(doc);
     } else {
       window.open(`${API_URL}${doc.file_url}`, '_blank');
+    }
+  };
+
+  const handleDelete = (e, docId) => {
+    e.stopPropagation(); // Avoid triggering document viewer modal
+    if (window.confirm("Are you sure you want to delete this unrelated document? This will remove the file permanently.")) {
+      if (onDeleteDocument) {
+        onDeleteDocument(docId);
+      }
     }
   };
 
@@ -104,21 +113,44 @@ const DocumentHistory = ({ documents, loading, onViewDocument }) => {
             {doc.processing_status === 'Completed' && (
               <>
                 {doc.document_type === 'Unrelated' ? (
-                  <span style={{ 
-                    backgroundColor: 'rgba(180, 83, 9, 0.08)', 
-                    color: '#b45309', 
-                    border: '1px solid rgba(180, 83, 9, 0.2)',
-                    padding: '2px 8px', 
-                    borderRadius: '20px',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    <AlertTriangle size={10} />
-                    Unrelated
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ 
+                      backgroundColor: 'rgba(180, 83, 9, 0.08)', 
+                      color: '#b45309', 
+                      border: '1px solid rgba(180, 83, 9, 0.2)',
+                      padding: '2px 8px', 
+                      borderRadius: '20px',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <AlertTriangle size={10} />
+                      Unrelated
+                    </span>
+                    {onDeleteDocument && (
+                      <button
+                        onClick={(e) => handleDelete(e, doc.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: 'var(--radius-sm)',
+                          transition: 'all 0.2s'
+                        }}
+                        title="Delete unrelated document"
+                        className="btn-danger-hover-mini"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <span className={getStatusBadgeClass(doc.processing_status)} style={{ padding: '2px 8px', fontSize: '10px' }}>
                     Uploaded

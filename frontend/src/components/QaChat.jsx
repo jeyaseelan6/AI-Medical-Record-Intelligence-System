@@ -263,19 +263,16 @@ const QaChat = ({ patientId, documents = [], onViewDocument }) => {
                     {/* Recommendation note */}
                     {msg.recommendation && (
                       <div 
-                        className="disclaimer-banner"
+                        className="alert-box alert-warning"
                         style={{ 
-                          display: 'flex', 
-                          gap: '8px', 
-                          alignItems: 'flex-start', 
-                          margin: '4px 0 0 0', 
+                          margin: '8px 0 0 0', 
                           padding: '10px 12px',
-                          border: '1px solid rgba(217, 119, 6, 0.15)',
-                          backgroundColor: 'rgba(217, 119, 6, 0.03)'
+                          boxShadow: 'none',
+                          borderRadius: 'var(--radius-sm)'
                         }}
                       >
-                        <ShieldAlert size={14} style={{ flexShrink: 0, marginTop: '2px', color: '#b45309' }} />
-                        <span style={{ fontSize: '11.5px', color: '#b45309', lineHeight: '1.5' }}>
+                        <ShieldAlert size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span style={{ fontSize: '11.5px', lineHeight: '1.5' }}>
                           <strong>Safety Advice:</strong> {msg.recommendation}
                         </span>
                       </div>
@@ -290,21 +287,20 @@ const QaChat = ({ patientId, documents = [], onViewDocument }) => {
 
       {/* Permanent Medical Safety Disclaimer Banner */}
       <div 
+        className="alert-box alert-warning"
         style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          padding: '8px 16px', 
-          backgroundColor: 'rgba(180, 83, 9, 0.03)', 
-          borderTop: '1px solid var(--color-border)', 
-          fontSize: '11px', 
-          color: '#b45309',
-          lineHeight: '1.4'
+          borderRadius: 0,
+          borderLeft: 0,
+          borderRight: 0,
+          borderBottom: 0,
+          padding: '10px 16px',
+          fontSize: '11.5px',
+          boxShadow: 'none'
         }}
       >
-        <ShieldAlert size={14} style={{ flexShrink: 0, color: '#b45309' }} />
+        <ShieldAlert size={14} style={{ flexShrink: 0 }} />
         <span>
-          <strong>Notice:</strong> AI Clinical Assistant may make mistakes. Always refer to a doctor or qualified medical professional for clinical advice.
+          <strong>Clinical Notice:</strong> AI Clinical Assistant can make mistakes. Always refer to a doctor or pharmacist for clinical advice.
         </span>
       </div>
 
