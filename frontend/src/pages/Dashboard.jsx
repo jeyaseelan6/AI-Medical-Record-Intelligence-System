@@ -453,7 +453,7 @@ const Dashboard = () => {
                 }}
               >
                 <Activity size={15} />
-                <span>Health Trends</span>
+                <span>AI Health Forecast</span>
               </button>
 
               <button 
@@ -569,10 +569,10 @@ const Dashboard = () => {
                 <div className="dashboard-card" style={{ padding: '30px' }}>
                   <h3 className="card-title">
                     <Activity size={18} style={{ color: 'var(--color-secondary)' }} />
-                    <span>Health Metric Trends</span>
+                    <span>AI Health Forecast</span>
                   </h3>
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-                    Chronological tracking of body temperature and weight vitals extracted from record documents.
+                    30-day health trajectory forecasts, cardiovascular risk projections, and metrics history logs.
                   </p>
                   <TrendCharts timeline={timeline} patientId={selectedPatientId} onViewDocument={setPreviewDoc} />
                 </div>

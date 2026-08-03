@@ -31,11 +31,11 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
       border = 'rgba(20, 184, 166, 0.2)';
     } else if (type.includes('discharge') || type.includes('summary')) {
       bg = 'rgba(139, 92, 246, 0.08)';
-      color = '#8b5cf6';
+      color = '#7c3aed';
       border = 'rgba(139, 92, 246, 0.2)';
     } else if (type.includes('notes') || type.includes('medical')) {
       bg = 'rgba(245, 158, 11, 0.08)';
-      color = '#d97706';
+      color = '#b45309';
       border = 'rgba(245, 158, 11, 0.2)';
     }
     
@@ -145,8 +145,8 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
               {event.symptoms && (
                 <div style={{ marginBottom: '12px', fontSize: '13px', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
                   <span style={{ height: '6px', width: '6px', backgroundColor: 'var(--color-warning)', borderRadius: '50%', marginTop: '6px', flexShrink: 0 }}></span>
-                  <span style={{ color: 'var(--color-text-muted)' }}>
-                    <strong>Symptoms: </strong>{event.symptoms}
+                  <span style={{ color: 'var(--color-text-main)' }}>
+                    <strong style={{ color: 'var(--color-text-muted)' }}>Symptoms: </strong>{event.symptoms}
                   </span>
                 </div>
               )}
@@ -154,7 +154,7 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
               {/* Doctor notes with left-accent highlight */}
               {event.notes && (
                 <div style={{ 
-                  fontSize: '13px', 
+                  fontSize: '13.5px', 
                   backgroundColor: 'rgba(14, 165, 233, 0.02)', 
                   padding: '12px 16px', 
                   borderRadius: 'var(--radius-sm)', 
@@ -164,7 +164,7 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                   borderBottom: '1px solid var(--color-border)',
                   marginBottom: '16px', 
                   fontStyle: 'italic',
-                  color: 'var(--color-text-muted)',
+                  color: 'var(--color-text-main)',
                   lineHeight: '1.5'
                 }}>
                   "{event.notes}"
@@ -176,7 +176,7 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                 {/* Medications section */}
                 {meds && meds.length > 0 && (
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
                       <Pill size={12} style={{ color: 'var(--color-success)' }} />
                       <span>Prescribed Medications</span>
                     </div>
@@ -190,9 +190,9 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                             padding: '6px 12px', 
                             fontSize: '12px', 
                             borderRadius: '8px', 
-                            backgroundColor: 'rgba(16, 185, 129, 0.04)', 
-                            border: '1px solid rgba(16, 185, 129, 0.12)', 
-                            color: '#065f46',
+                            backgroundColor: 'rgba(16, 185, 129, 0.06)', 
+                            border: '1px solid rgba(16, 185, 129, 0.2)', 
+                            color: '#047857',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px'
@@ -200,7 +200,7 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                           title={`Dosage: ${med.dosage || 'N/A'}, Frequency: ${med.frequency || 'N/A'}, Duration: ${med.duration || 'N/A'}`}
                         >
                           <strong>{med.medicine_name}</strong>
-                          {med.dosage && <span style={{ opacity: 0.8 }}>({med.dosage})</span>}
+                          {med.dosage && <span style={{ opacity: 0.85 }}>({med.dosage})</span>}
                         </span>
                       ))}
                     </div>
@@ -210,7 +210,7 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                 {/* Diagnostics / Labs section */}
                 {labs && labs.length > 0 && (
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-light)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
                       <Activity size={12} style={{ color: 'var(--color-primary)' }} />
                       <span>Diagnostics & Lab Orders</span>
                     </div>
@@ -227,8 +227,8 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                               padding: '6px 12px', 
                               fontSize: '12px', 
                               borderRadius: '8px', 
-                              backgroundColor: 'rgba(20, 184, 166, 0.04)', 
-                              border: '1px solid rgba(20, 184, 166, 0.12)', 
+                              backgroundColor: 'rgba(20, 184, 166, 0.06)', 
+                              border: '1px solid rgba(20, 184, 166, 0.2)', 
                               color: '#0f766e',
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -250,7 +250,7 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                 <div style={{ 
                   marginTop: '16px', 
                   fontSize: '11px', 
-                  color: 'var(--color-text-light)',
+                  color: 'var(--color-text-muted)',
                   borderTop: '1px dashed var(--color-border)',
                   paddingTop: '12px',
                   display: 'flex',

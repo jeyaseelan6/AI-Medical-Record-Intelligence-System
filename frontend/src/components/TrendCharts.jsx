@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Info, TrendingUp, Activity, Heart, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Info, TrendingUp, Activity, Heart, Sparkles, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../context/AuthContext.jsx';
 
 const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
-  const [selectedMetric, setSelectedMetric] = useState('');
+  const [expandedMetric, setExpandedMetric] = useState('');
+  const [activeReadingIdx, setActiveReadingIdx] = useState(0);
   const [forecast, setForecast] = useState(null);
   const [loadingForecast, setLoadingForecast] = useState(false);
   const [errorForecast, setErrorForecast] = useState(null);
@@ -40,7 +41,7 @@ const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
   const groupedData = useMemo(() => {
     if (!timeline || timeline.length === 0) return {};
     
-    // Process timeline in chronological order (oldest to newest for graphing)
+    // Process timeline in chronological order (oldest to newest for comparison navigation)
     const sortedTimeline = [...timeline].sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
     
     const groups = {};
@@ -65,7 +66,7 @@ const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
           normalizedName = 'Heart Rate';
         } else if (lowerName.includes('hemoglobin') || lowerName === 'hb') {
           normalizedName = 'Hemoglobin';
-        } else if (lowerName.includes('sugar') || lowerName.includes('glucose') || lowerName.includes('sugar level')) {
+        } else if (lowerName.includes('sugar') || lowerName === 'glucose') {
           normalizedName = 'Blood Sugar';
         } else if (lowerName.includes('systolic') || lowerName.includes('blood pressure') || lowerName === 'bp') {
           normalizedName = 'Blood Pressure';
@@ -80,13 +81,11 @@ const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
           groups[normalizedName] = [];
         }
 
-        // Keep all points chronologically to allow plotting, making dates unique by appending a reference index
         groups[normalizedName].push({
           date: `${dateFormatted} (Ref #${event.id})`,
           displayDate: dateFormatted,
           val: numVal,
           unit: lab.unit || '',
-          display: `${numVal}${lab.unit || ''}`,
           document_name: event.document_name,
           document_url: event.document_url,
           doctor_name: event.doctor_name,
@@ -95,7 +94,6 @@ const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
       });
     });
 
-    // Clean up empty groups
     const activeGroups = {};
     Object.keys(groups).forEach(key => {
       if (groups[key].length > 0) {
@@ -108,446 +106,426 @@ const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
 
   const metricKeys = useMemo(() => Object.keys(groupedData), [groupedData]);
 
-  // Sync selected metric with available dynamic keys
+  // Sync selected index to point to the latest reading when expandedMetric changes
   useEffect(() => {
-    if (metricKeys.length > 0) {
-      if (!selectedMetric || !metricKeys.includes(selectedMetric)) {
-        setSelectedMetric(metricKeys[0]);
-      }
+    if (expandedMetric && groupedData[expandedMetric]) {
+      setActiveReadingIdx(groupedData[expandedMetric].length - 1);
     } else {
-      setSelectedMetric('');
+      setActiveReadingIdx(0);
     }
-  }, [metricKeys, selectedMetric]);
-
-  const activeData = groupedData[selectedMetric] || [];
+  }, [expandedMetric, groupedData]);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', alignItems: 'start' }}>
-      
-      {/* LEFT COLUMN: Quantitative Data (vitals charts and past comparison) */}
-      <div className="dashboard-card" style={{ padding: '24px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-        <h3 className="card-title" style={{ marginBottom: '18px', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
-          <Activity size={18} style={{ color: 'var(--color-primary)' }} />
-          <span>Vitals & Metric History</span>
-        </h3>
-        
-        {metricKeys.length > 0 ? (
-          <>
-            {/* Segmented Controls Tab Selector */}
-            <div style={{ 
-              display: 'inline-flex', 
-              backgroundColor: 'var(--color-bg)', 
-              border: '1px solid var(--color-border)',
-              padding: '4px',
-              borderRadius: 'var(--radius-sm)',
-              marginBottom: '20px',
-              gap: '4px',
-              alignSelf: 'start',
-              flexWrap: 'wrap'
-            }}>
-              {metricKeys.map((key) => {
-                const firstPoint = groupedData[key][0];
-                const unitLabel = firstPoint && firstPoint.unit ? ` (${firstPoint.unit})` : '';
-                const isActive = selectedMetric === key;
-                
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedMetric(key)}
-                    style={{ 
-                      fontSize: '12px', 
-                      padding: '6px 14px',
-                      backgroundColor: isActive ? 'var(--color-surface)' : 'transparent',
-                      color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                      border: 'none',
-                      fontWeight: isActive ? '600' : '500',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
-                      border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
-                      transition: 'all 0.15s ease',
-                      outline: 'none'
-                    }}
-                  >
-                    {key}{unitLabel}
-                  </button>
-                );
-              })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '10px' }}>
+
+      {loadingForecast && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', gap: '12px' }}>
+          <RefreshCw size={28} className="spinner" style={{ color: 'var(--color-secondary)' }} />
+          <span style={{ fontSize: '13.5px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', textAlign: 'center' }}>
+            Compiling clinical timeline logs and generating wellness projections...
+          </span>
+        </div>
+      )}
+
+      {errorForecast && (
+        <div className="alert-box alert-danger" style={{ fontSize: '12.5px' }}>
+          <AlertTriangle size={16} />
+          <span>{errorForecast}</span>
+        </div>
+      )}
+
+      {!loadingForecast && !errorForecast && forecast && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'flex-start', 
+            flexWrap: 'wrap-reverse', 
+            gap: '20px',
+            backgroundColor: 'var(--color-bg)',
+            padding: '20px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border)'
+          }}>
+            <div style={{ flex: '1', minWidth: '280px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', marginBottom: '6px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                30-Day Wellness Outlook
+              </h4>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.6', fontFamily: 'var(--font-body)' }}>
+                {forecast.overall_wellness_forecast}
+              </p>
             </div>
 
-            {/* Latest Metric value readout */}
-            {activeData.length > 0 && (
-              <div style={{ 
-                marginBottom: '16px', 
-                padding: '10px 14px', 
-                backgroundColor: 'rgba(20, 184, 166, 0.02)', 
-                borderLeft: '4px solid var(--color-primary)', 
-                borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: '8px'
-              }}>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Latest Reading:
-                </span>
-                <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
-                  {activeData[activeData.length - 1].val} {activeData[activeData.length - 1].unit}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', opacity: 0.8 }}>
-                  recorded on {activeData[activeData.length - 1].displayDate || activeData[activeData.length - 1].date}
-                </span>
-              </div>
-            )}
-
-            {/* Chart Canvas / Single Point Card */}
-            {activeData.length > 1 ? (
-              <div style={{ width: '100%', height: 200, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                    <XAxis dataKey="date" stroke="var(--color-text-light)" tickFormatter={(tick) => tick.split(' (Ref')[0]} />
-                    <YAxis 
-                      domain={selectedMetric === 'Temperature' ? [35, 41] : ['auto', 'auto']} 
-                      stroke="var(--color-text-light)" 
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'var(--color-surface)', 
-                        borderColor: 'var(--color-border)',
-                        borderRadius: 'var(--radius-sm)',
-                        boxShadow: 'var(--shadow-md)',
-                        fontSize: '12px'
-                      }}
-                      labelFormatter={(label, items) => {
-                        const item = items[0]?.payload;
-                        return item ? `Date: ${item.displayDate}` : label;
-                      }}
-                      formatter={(value, name, props) => [`${value} ${props.payload.unit || ''}`, selectedMetric]}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="val" 
-                      stroke={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorVal)" 
-                      dot={{ r: 4, strokeWidth: 1 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            ) : activeData.length === 1 ? (
-              <div style={{ 
-                backgroundColor: 'var(--color-bg)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px 20px',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}>
-                <div>
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>
-                    Single Vital Reading Recorded
-                  </span>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-text-main)', marginTop: '4px', fontFamily: 'var(--font-display)' }}>
-                    {activeData[0].val} {activeData[0].unit}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)' }}>
-                  Recorded on: <strong>{activeData[0].date}</strong>
-                </div>
-              </div>
-            ) : null}
-
-            {/* Historical Comparison Table (Compare previous records) */}
-            {activeData.length > 0 && (
-              <div style={{ marginTop: '16px' }}>
-                <h4 style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '10px', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <TrendingUp size={14} style={{ color: 'var(--color-primary)' }} />
-                  <span>{selectedMetric} Historical Readings Comparison</span>
-                </h4>
-                <div style={{ 
-                  backgroundColor: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  overflow: 'hidden'
-                }}>
-                  {/* Table Header */}
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1.2fr 1fr 1.8fr', 
-                    padding: '8px 12px', 
-                    backgroundColor: 'var(--color-bg)', 
-                    borderBottom: '1px solid var(--color-border)',
-                    fontSize: '10.5px',
-                    fontWeight: 700,
-                    color: 'var(--color-text-muted)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    <span>Visit Date</span>
-                    <span>Value</span>
-                    <span>Source Record</span>
-                  </div>
-
-                  {/* Table Rows (newest first) */}
-                  {[...activeData].reverse().map((point, pIdx) => (
-                    <div 
-                      key={pIdx} 
-                      style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: '1.2fr 1fr 1.8fr', 
-                        padding: '10px 12px', 
-                        borderBottom: pIdx === activeData.length - 1 ? 'none' : '1px solid var(--color-border)',
-                        fontSize: '12px',
-                        alignItems: 'center',
-                        color: 'var(--color-text-main)'
-                      }}
-                    >
-                      <span style={{ fontWeight: 500 }}>
-                        {new Date(point.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })}
-                      </span>
-                      <strong style={{ color: selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6' }}>
-                        {point.val} {point.unit}
-                      </strong>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px' }}>
-                        {point.document_name && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            {onViewDocument && point.document_url ? (
-                              <button
-                                onClick={() => onViewDocument({ file_name: point.document_name, file_url: point.document_url })}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: 'var(--color-primary)',
-                                  cursor: 'pointer',
-                                  padding: 0,
-                                  textDecoration: 'underline',
-                                  fontWeight: 600,
-                                  textAlign: 'left'
-                                }}
-                              >
-                                {point.document_name}
-                              </button>
-                            ) : (
-                              <span style={{ color: 'var(--color-text-muted)' }}>{point.document_name}</span>
-                            )}
-                          </div>
-                        )}
-                        {point.doctor_name && (
-                          <span style={{ color: 'var(--color-text-light)', fontStyle: 'italic', fontSize: '10px' }}>
-                            via {point.doctor_name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="alert-box alert-info" style={{ margin: '0' }}>
-            <Info size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div>
-              <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px' }}>Vitals Trends Chart</strong>
-              <span style={{ fontSize: '12.5px', opacity: 0.9 }}>
-                No numeric vital measurements (such as Temperature, Weight, Blood Sugar, or Hemoglobin) were found in this patient's uploaded documents.
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* RIGHT COLUMN: AI Trajectory Forecasting */}
-      <div className="dashboard-card" style={{ padding: '24px', minHeight: '400px' }}>
-        <h3 className="card-title" style={{ marginBottom: '18px', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
-          <Sparkles size={18} style={{ color: 'var(--color-secondary)' }} />
-          <span>AI Health Trajectory & Risk Forecast</span>
-        </h3>
-
-        {loadingForecast && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', gap: '12px' }}>
-            <RefreshCw size={28} className="spinner" style={{ color: 'var(--color-secondary)' }} />
-            <span style={{ fontSize: '13.5px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', textAlign: 'center' }}>
-              Analyzing timeline logs and generating 30-day wellness forecasts...
-            </span>
-          </div>
-        )}
-
-        {errorForecast && (
-          <div className="alert-box alert-danger" style={{ fontSize: '12.5px' }}>
-            <AlertTriangle size={16} />
-            <span>{errorForecast}</span>
-          </div>
-        )}
-
-        {!loadingForecast && !errorForecast && forecast && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Top Row: Wellness text + Cardiovascular Risk Badge */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap-reverse', gap: '16px' }}>
-              <div style={{ flex: '1', minWidth: '220px' }}>
-                <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', marginBottom: '6px', fontFamily: 'var(--font-display)' }}>
-                  30-Day Wellness Forecast
-                </h4>
-                <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.6', fontFamily: 'var(--font-body)' }}>
-                  {forecast.overall_wellness_forecast}
-                </p>
-              </div>
-
-              {/* Cardiovascular Risk Badge */}
-              {(() => {
-                const getRiskStyles = (risk) => {
-                  const level = (risk || '').toLowerCase();
-                  if (level === 'high') {
-                    return {
-                      bg: 'rgba(244, 63, 94, 0.04)',
-                      border: 'rgba(244, 63, 94, 0.15)',
-                      color: 'var(--color-danger)'
-                    };
-                  }
-                  if (level === 'moderate') {
-                    return {
-                      bg: 'rgba(245, 158, 11, 0.04)',
-                      border: 'rgba(245, 158, 11, 0.15)',
-                      color: '#d97706'
-                    };
-                  }
+            {(() => {
+              const getRiskStyles = (risk) => {
+                const level = (risk || '').toLowerCase().trim();
+                if (level === 'high') {
+                  return {
+                    bg: 'rgba(244, 63, 94, 0.04)',
+                    border: 'rgba(244, 63, 94, 0.15)',
+                    color: 'var(--color-danger)',
+                    text: 'High Risk'
+                  };
+                }
+                if (level === 'moderate') {
+                  return {
+                    bg: 'rgba(245, 158, 11, 0.04)',
+                    border: 'rgba(245, 158, 11, 0.15)',
+                    color: '#d97706',
+                    text: 'Moderate Risk'
+                  };
+                }
+                if (level === 'low') {
                   return {
                     bg: 'rgba(16, 185, 129, 0.04)',
                     border: 'rgba(16, 185, 129, 0.15)',
-                    color: 'var(--color-success)'
+                    color: 'var(--color-success)',
+                    text: 'Low Risk'
                   };
+                }
+                return {
+                  bg: 'rgba(148, 163, 184, 0.04)',
+                  border: 'rgba(148, 163, 184, 0.15)',
+                  color: 'var(--color-text-muted)',
+                  text: 'Not Enough Data'
                 };
-                const riskStyle = getRiskStyles(forecast.cardiovascular_risk_projection);
-                return (
-                  <div style={{ 
-                    backgroundColor: riskStyle.bg,
-                    border: `1px solid ${riskStyle.border}`,
-                    borderRadius: 'var(--radius-md)',
-                    padding: '12px 18px',
-                    minWidth: '180px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    boxShadow: 'var(--shadow-sm)'
-                  }}>
-                    <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.8 }}>
-                      Cardiovascular Risk
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Heart size={16} fill={riskStyle.color} style={{ color: riskStyle.color }} />
-                      <span style={{ 
-                        fontSize: '15px', 
-                        fontWeight: 800, 
-                        color: riskStyle.color,
-                        fontFamily: 'var(--font-display)',
-                        textTransform: 'uppercase'
-                      }}>
-                        {forecast.cardiovascular_risk_projection}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Middle Section: Vitals Projections List (Filtered to hide insufficient data) */}
-            {(() => {
-              const visibleMetrics = (forecast.forecast_metrics || []).filter(
-                item => (item.projected_trend || '').toLowerCase() !== 'insufficient data'
-              );
-
-              if (visibleMetrics.length === 0) return null;
-
+              };
+              const riskStyle = getRiskStyles(forecast.cardiovascular_risk_projection);
               return (
-                <div>
-                  <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', marginBottom: '8px', fontFamily: 'var(--font-display)' }}>
-                    Projected Vital Trajectories
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {visibleMetrics.map((item, idx) => {
-                      const trendColors = {
-                        'Improving': { bg: 'rgba(16, 185, 129, 0.08)', text: 'var(--color-success)', border: 'rgba(16, 185, 129, 0.2)' },
-                        'Stable': { bg: 'rgba(14, 165, 233, 0.08)', text: 'var(--color-secondary)', border: 'rgba(14, 165, 233, 0.2)' },
-                        'Declining': { bg: 'rgba(244, 63, 94, 0.08)', text: 'var(--color-danger)', border: 'rgba(244, 63, 94, 0.2)' },
-                        'Risk of Elevation': { bg: 'rgba(245, 158, 11, 0.08)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' }
-                      };
-                      const colorStyles = trendColors[item.projected_trend] || { bg: 'rgba(148, 163, 184, 0.08)', text: 'var(--color-text-muted)', border: 'var(--color-border)' };
-
-                      return (
-                        <div 
-                          key={idx} 
-                          style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: '150px 130px 1fr', 
-                            alignItems: 'center', 
-                            padding: '12px 14px', 
-                            backgroundColor: 'var(--color-bg)', 
-                            border: '1px solid var(--color-border)', 
-                            borderRadius: 'var(--radius-sm)',
-                            gap: '12px'
-                          }}
-                        >
-                          {/* Col 1: Metric */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
-                              {item.metric}
-                            </span>
-                            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', opacity: 0.85 }}>
-                              Current: {item.current_status || 'N/A'}
-                            </span>
-                          </div>
-
-                          {/* Col 2: Badge */}
-                          <div>
-                            <span style={{ 
-                              fontSize: '11px', 
-                              fontWeight: 600, 
-                              padding: '4px 10px', 
-                              borderRadius: '20px',
-                              backgroundColor: colorStyles.bg,
-                              color: colorStyles.text,
-                              border: `1px solid ${colorStyles.border}`,
-                              display: 'inline-block',
-                              textAlign: 'center',
-                              minWidth: '105px'
-                            }}>
-                              {item.projected_trend}
-                            </span>
-                          </div>
-
-                          {/* Col 3: Rationale */}
-                          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.4', fontFamily: 'var(--font-body)' }}>
-                            {item.rationale}
-                          </div>
-                        </div>
-                      );
-                    })}
+                <div style={{ 
+                  backgroundColor: riskStyle.bg,
+                  border: `1px solid ${riskStyle.border}`,
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 18px',
+                  minWidth: '185px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  boxShadow: 'var(--shadow-sm)'
+                }}>
+                  <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.8 }}>
+                    Cardiovascular Risk
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Heart 
+                      size={16} 
+                      fill={riskStyle.color === 'var(--color-text-muted)' ? 'none' : riskStyle.color} 
+                      style={{ color: riskStyle.color }} 
+                    />
+                    <span style={{ 
+                      fontSize: '14px', 
+                      fontWeight: 800, 
+                      color: riskStyle.color,
+                      fontFamily: 'var(--font-display)',
+                      textTransform: 'uppercase'
+                    }}>
+                      {riskStyle.text}
+                    </span>
                   </div>
                 </div>
               );
             })()}
+          </div>
 
-            {/* Bottom Row: Ethics Safety Disclaimer */}
-            <div className="alert-box alert-warning" style={{ margin: '0', fontSize: '11.5px', padding: '10px 12px' }}>
-              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span>
-                {forecast.safety_disclaimer}
-              </span>
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', marginBottom: '12px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Projected Vital Trajectories & History Logs
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {(() => {
+                const allKeys = [...metricKeys];
+                
+                (forecast.forecast_metrics || []).forEach(item => {
+                  if (item.metric && !allKeys.includes(item.metric)) {
+                    allKeys.push(item.metric);
+                  }
+                });
+
+                const visibleKeys = allKeys.filter(key => {
+                  const historyPoints = groupedData[key] || [];
+                  if (historyPoints.length === 0) {
+                    return false;
+                  }
+                  
+                  const forecastItem = (forecast.forecast_metrics || []).find(
+                    item => item.metric.toLowerCase() === key.toLowerCase()
+                  );
+                  if (forecastItem) {
+                    return (forecastItem.projected_trend || '').toLowerCase() !== 'insufficient data';
+                  }
+                  return true;
+                });
+
+                if (visibleKeys.length === 0) {
+                  return (
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '12px' }}>
+                      No projected vitals or metrics history available.
+                    </div>
+                  );
+                }
+
+                return visibleKeys.map((key) => {
+                  const historyPoints = groupedData[key] || [];
+                  const currentReading = historyPoints.length > 0 ? historyPoints[historyPoints.length - 1] : null;
+                  
+                  const forecastItem = (forecast.forecast_metrics || []).find(
+                    item => item.metric.toLowerCase() === key.toLowerCase()
+                  );
+
+                  const trendText = forecastItem ? forecastItem.projected_trend : 'Historical Data';
+                  const rationaleText = forecastItem ? forecastItem.rationale : 'Historical vital records logs parsed from document uploads.';
+
+                  const trendColors = {
+                    'Improving': { bg: 'rgba(16, 185, 129, 0.08)', text: 'var(--color-success)', border: 'rgba(16, 185, 129, 0.2)' },
+                    'Stable': { bg: 'rgba(14, 165, 233, 0.08)', text: 'var(--color-secondary)', border: 'rgba(14, 165, 233, 0.2)' },
+                    'Declining': { bg: 'rgba(244, 63, 94, 0.08)', text: 'var(--color-danger)', border: 'rgba(244, 63, 94, 0.2)' },
+                    'Risk of Elevation': { bg: 'rgba(245, 158, 11, 0.08)', text: '#d97706', border: 'rgba(245, 158, 11, 0.2)' },
+                    'Historical Data': { bg: 'rgba(100, 116, 139, 0.08)', text: 'var(--color-text-muted)', border: 'var(--color-border)' }
+                  };
+                  const colorStyles = trendColors[trendText] || { bg: 'rgba(148, 163, 184, 0.08)', text: 'var(--color-text-muted)', border: 'var(--color-border)' };
+
+                  const isExpanded = expandedMetric === key;
+
+                  return (
+                    <div 
+                      key={key} 
+                      style={{ 
+                        border: '1px solid var(--color-border)', 
+                        borderRadius: 'var(--radius-md)', 
+                        backgroundColor: isExpanded ? 'var(--color-bg)' : 'var(--color-surface)',
+                        transition: 'all 0.2s ease',
+                        boxShadow: 'var(--shadow-sm)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {/* Card Content Header Row */}
+                      <div 
+                        onClick={() => setExpandedMetric(isExpanded ? '' : key)}
+                        style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: '180px 130px 1fr auto', 
+                          alignItems: 'center', 
+                          padding: '12px 20px', 
+                          gap: '16px',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {/* Col 1: Metric name and latest current value */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
+                            {key}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)' }}>
+                            Current: <strong style={{ color: 'var(--color-text-main)' }}>{currentReading ? `${currentReading.val} ${currentReading.unit}` : 'N/A'}</strong>
+                          </span>
+                        </div>
+
+                        {/* Col 2: Trend Badge */}
+                        <div>
+                          <span style={{ 
+                            fontSize: '10px', 
+                            fontWeight: 600, 
+                            padding: '3px 8px', 
+                            borderRadius: '12px',
+                            backgroundColor: colorStyles.bg,
+                            color: colorStyles.text,
+                            border: `1px solid ${colorStyles.border}`,
+                            display: 'inline-block',
+                            textAlign: 'center',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.2px'
+                          }}>
+                            {trendText}
+                          </span>
+                        </div>
+
+                        {/* Col 3: Rationale */}
+                        <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', lineHeight: '1.4', fontFamily: 'var(--font-body)', paddingRight: '8px' }}>
+                          {rationaleText}
+                        </div>
+
+                        {/* Col 4: Expand/Collapse Trigger */}
+                        <div style={{ color: 'var(--color-primary)', fontSize: '11px', fontWeight: 700 }}>
+                          {isExpanded ? 'Hide ▲' : 'View History ▼'}
+                        </div>
+                      </div>
+
+                      {/* Collapsible history carousel drawer */}
+                      {isExpanded && historyPoints.length > 0 && (
+                        <div style={{ 
+                          borderTop: '1px solid var(--color-border)', 
+                          padding: '16px 20px',
+                          backgroundColor: 'var(--color-bg)'
+                        }}>
+                          {(() => {
+                            const currentReading = historyPoints[activeReadingIdx];
+                            if (!currentReading) return null;
+
+                            const hasPrevious = activeReadingIdx > 0;
+                            const prevReading = hasPrevious ? historyPoints[activeReadingIdx - 1] : null;
+                            let diffText = '';
+                            let diffColor = 'var(--color-text-muted)';
+                            let diffIcon = null;
+
+                            if (prevReading) {
+                              const diff = currentReading.val - prevReading.val;
+                              const formattedDiff = Math.abs(diff).toFixed(1).replace(/\.0$/, '');
+                              if (diff > 0) {
+                                diffText = `+${formattedDiff} ${currentReading.unit} since prev`;
+                                diffColor = key === 'Temperature' || key === 'Blood Sugar' ? 'var(--color-danger)' : 'var(--color-primary)';
+                                diffIcon = <TrendingUp size={12} style={{ color: diffColor, marginRight: '3px', verticalAlign: 'middle' }} />;
+                              } else if (diff < 0) {
+                                diffText = `-${formattedDiff} ${currentReading.unit} since prev`;
+                                diffColor = 'var(--color-success)';
+                                diffIcon = <TrendingUp size={12} style={{ color: diffColor, transform: 'rotate(180deg)', marginRight: '3px', verticalAlign: 'middle' }} />;
+                              } else {
+                                diffText = 'No change';
+                                diffColor = 'var(--color-text-light)';
+                              }
+                            } else {
+                              diffText = 'Baseline';
+                            }
+
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                  {historyPoints.length > 1 ? (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        activeReadingIdx > 0 && setActiveReadingIdx(activeReadingIdx - 1);
+                                      }}
+                                      disabled={activeReadingIdx === 0}
+                                      style={{ 
+                                        width: '28px', 
+                                        height: '28px', 
+                                        borderRadius: '50%', 
+                                        border: '1px solid var(--color-border)', 
+                                        backgroundColor: 'var(--color-surface)',
+                                        color: activeReadingIdx === 0 ? 'var(--color-text-light)' : 'var(--color-text-main)',
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        cursor: activeReadingIdx === 0 ? 'not-allowed' : 'pointer',
+                                        opacity: activeReadingIdx === 0 ? 0.3 : 1,
+                                        boxShadow: 'var(--shadow-sm)',
+                                        padding: 0
+                                      }}
+                                    >
+                                      <ChevronLeft size={14} />
+                                    </button>
+                                  ) : <div style={{ width: '28px' }} />}
+
+                                  <div style={{ textAlign: 'center' }}>
+                                    <span style={{ fontSize: '9px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                      Log {activeReadingIdx + 1} of {historyPoints.length}
+                                    </span>
+                                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
+                                      {currentReading.val} <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--color-text-muted)' }}>{currentReading.unit}</span>
+                                    </div>
+                                  </div>
+
+                                  {historyPoints.length > 1 ? (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        activeReadingIdx < historyPoints.length - 1 && setActiveReadingIdx(activeReadingIdx + 1);
+                                      }}
+                                      disabled={activeReadingIdx === historyPoints.length - 1}
+                                      style={{ 
+                                        width: '28px', 
+                                        height: '28px', 
+                                        borderRadius: '50%', 
+                                        border: '1px solid var(--color-border)', 
+                                        backgroundColor: 'var(--color-surface)',
+                                        color: activeReadingIdx === historyPoints.length - 1 ? 'var(--color-text-light)' : 'var(--color-text-main)',
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        cursor: activeReadingIdx === historyPoints.length - 1 ? 'not-allowed' : 'pointer',
+                                        opacity: activeReadingIdx === historyPoints.length - 1 ? 0.3 : 1,
+                                        boxShadow: 'var(--shadow-sm)',
+                                        padding: 0
+                                      }}
+                                    >
+                                      <ChevronRight size={14} />
+                                    </button>
+                                  ) : <div style={{ width: '28px' }} />}
+                                </div>
+
+                                <div style={{ 
+                                  textAlign: 'center', 
+                                  fontSize: '11px', 
+                                  color: 'var(--color-text-muted)',
+                                  borderTop: '1px dashed var(--color-border)',
+                                  paddingTop: '8px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '2px',
+                                  lineHeight: '1.4'
+                                }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px', color: diffColor }}>
+                                    {diffIcon}
+                                    <strong>{diffText}</strong>
+                                  </div>
+                                  <span>
+                                    Recorded: <strong>{new Date(currentReading.event_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</strong>
+                                  </span>
+                                  {currentReading.document_name && (
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px', marginTop: '2px' }}>
+                                      <span>Source:</span>
+                                      {onViewDocument && currentReading.document_url ? (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onViewDocument({ file_name: currentReading.document_name, file_url: currentReading.document_url });
+                                          }}
+                                          style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: 'var(--color-primary)',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                            textDecoration: 'underline',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            maxWidth: '130px'
+                                          }}
+                                        >
+                                          {currentReading.document_name}
+                                        </button>
+                                      ) : (
+                                        <span style={{ color: 'var(--color-text-light)' }}>{currentReading.document_name}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="alert-box alert-warning" style={{ margin: '0', fontSize: '11.5px', padding: '10px 12px' }}>
+            <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span>
+              {forecast.safety_disclaimer}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
