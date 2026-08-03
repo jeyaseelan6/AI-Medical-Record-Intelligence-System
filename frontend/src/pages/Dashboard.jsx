@@ -557,7 +557,7 @@ const Dashboard = () => {
                           <div className="spinner-primary"></div>
                         </div>
                       ) : (
-                        <MedicalTimeline timeline={timeline} />
+                        <MedicalTimeline timeline={timeline} onViewDocument={setPreviewDoc} />
                       )}
                     </div>
                   </div>

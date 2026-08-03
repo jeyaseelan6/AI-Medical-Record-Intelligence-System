@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pill, Activity, Stethoscope, FileText, Calendar } from 'lucide-react';
+import { Pill, Activity, Stethoscope, FileText, Calendar, Eye } from 'lucide-react';
 
-const MedicalTimeline = ({ timeline }) => {
+const MedicalTimeline = ({ timeline, onViewDocument }) => {
   
   // Format dates nicely (e.g. "03 Oct 2019")
   const formatDate = (dateString) => {
@@ -124,7 +124,29 @@ const MedicalTimeline = ({ timeline }) => {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span>Source Record:</span>
-                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{event.document_name}</span>
+                    {onViewDocument && event.document_url ? (
+                      <button
+                        onClick={() => onViewDocument({ file_name: event.document_name, file_url: event.document_url })}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-primary)',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: '0',
+                          textDecoration: 'underline',
+                          fontSize: '11px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {event.document_name}
+                        <Eye size={12} />
+                      </button>
+                    ) : (
+                      <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{event.document_name}</span>
+                    )}
                   </div>
                   {event.document_category && (
                     <span style={{ 
