@@ -17,6 +17,9 @@ const Dashboard = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [insights, setInsights] = useState([]);
+  const [forecast, setForecast] = useState(null);
+  const [loadingForecast, setLoadingForecast] = useState(false);
+  const [errorForecast, setErrorForecast] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -85,6 +88,23 @@ const Dashboard = () => {
       const insightsRes = await api.get(`/insights/${id}`);
       setInsights(insightsRes.data.data);
 
+      // Fetch AI Forecast
+      try {
+        setLoadingForecast(true);
+        setErrorForecast(null);
+        const forecastRes = await api.get(`/insights/forecast/${id}`);
+        if (forecastRes.data && forecastRes.data.success) {
+          setForecast(forecastRes.data.data);
+        } else {
+          setErrorForecast(forecastRes.data?.message || 'Failed to load forecast data');
+        }
+      } catch (fErr) {
+        console.error('Error fetching AI health forecast:', fErr.message);
+        setErrorForecast('Unable to compile AI health forecast.');
+      } finally {
+        setLoadingForecast(false);
+      }
+
       // Fetch Documents list
       try {
         setLoadingDocuments(true);
@@ -123,6 +143,8 @@ const Dashboard = () => {
       setSelectedPatient(null);
       setTimeline([]);
       setInsights([]);
+      setForecast(null);
+      setErrorForecast(null);
       setDocuments([]);
     }
   }, [selectedPatientId, patients]);
@@ -435,28 +457,6 @@ const Dashboard = () => {
               </button>
               
               <button 
-                onClick={() => setWorkspaceTab('trends')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: '12px 18px',
-                  fontSize: '13.5px',
-                  fontWeight: workspaceTab === 'trends' ? 600 : 500,
-                  color: workspaceTab === 'trends' ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                  borderBottom: workspaceTab === 'trends' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <Activity size={15} />
-                <span>AI Health Forecast</span>
-              </button>
-
-              <button 
                 onClick={() => setWorkspaceTab('safety')}
                 style={{
                   background: 'none',
@@ -476,6 +476,28 @@ const Dashboard = () => {
               >
                 <AlertTriangle size={15} />
                 <span>AI Safety Alerts</span>
+              </button>
+
+              <button 
+                onClick={() => setWorkspaceTab('trends')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '12px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: workspaceTab === 'trends' ? 600 : 500,
+                  color: workspaceTab === 'trends' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  borderBottom: workspaceTab === 'trends' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Activity size={15} />
+                <span>AI Health Forecast</span>
               </button>
 
               <button 
@@ -574,7 +596,14 @@ const Dashboard = () => {
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
                     30-day health trajectory forecasts, cardiovascular risk projections, and metrics history logs.
                   </p>
-                  <TrendCharts timeline={timeline} patientId={selectedPatientId} onViewDocument={setPreviewDoc} />
+                  <TrendCharts 
+                    timeline={timeline} 
+                    patientId={selectedPatientId} 
+                    onViewDocument={setPreviewDoc} 
+                    forecast={forecast}
+                    loadingForecast={loadingForecast}
+                    errorForecast={errorForecast}
+                  />
                 </div>
               )}
 
@@ -588,7 +617,12 @@ const Dashboard = () => {
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
                     Cross-visit medication safety, dosage modifications, drug repetitions, and clinical record inconsistencies.
                   </p>
-                  <InsightCards insights={insights} />
+                  <InsightCards 
+                    insights={insights} 
+                    timeline={timeline}
+                    documents={documents}
+                    onViewDocument={setPreviewDoc}
+                  />
                 </div>
               )}
 

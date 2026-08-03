@@ -1,8 +1,70 @@
 import React from 'react';
-import { ShieldAlert, AlertTriangle, TrendingUp, AlertCircle, Heart } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, TrendingUp, AlertCircle, Heart, Eye } from 'lucide-react';
 
-const InsightCards = ({ insights }) => {
+const InsightCards = ({ insights, timeline, documents, onViewDocument }) => {
   
+  // Helper to trace and match files by names or dates mentioned in the AI evidence
+  const findEvidenceDocuments = (evidenceText, timelineList, documentsList) => {
+    if (!evidenceText) return [];
+    
+    const matched = [];
+    const seenUrls = new Set();
+    const textLower = evidenceText.toLowerCase();
+
+    // Helper to add unique doc
+    const addMatch = (name, url) => {
+      if (!name || !url) return;
+      if (!seenUrls.has(url)) {
+        seenUrls.add(url);
+        matched.push({ file_name: name, file_url: url });
+      }
+    };
+
+    // 1. Scan timeline list events (which are the actual sources analyzed)
+    if (timelineList && timelineList.length > 0) {
+      timelineList.forEach(event => {
+        const docName = (event.document_name || '').toLowerCase();
+        const docUrl = event.document_url;
+        
+        // Match by filename in the evidence text
+        if (docName && textLower.includes(docName)) {
+          addMatch(event.document_name, docUrl);
+          return;
+        }
+
+        // Match by date (e.g. "2019-10-03")
+        if (event.event_date) {
+          const dateStr = event.event_date.split('T')[0]; // "2019-10-03"
+          if (textLower.includes(dateStr)) {
+            addMatch(event.document_name, docUrl);
+            return;
+          }
+          
+          // Match by user-friendly dates (e.g. "Oct 03, 2019" -> check if "2019" and "oct" are both in text)
+          const dateObj = new Date(event.event_date);
+          const year = dateObj.getFullYear().toString();
+          const monthShort = dateObj.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+          const monthLong = dateObj.toLocaleString('en-US', { month: 'long' }).toLowerCase();
+          if (textLower.includes(year) && (textLower.includes(monthShort) || textLower.includes(monthLong))) {
+            addMatch(event.document_name, docUrl);
+          }
+        }
+      });
+    }
+
+    // 2. Fallback scan uploaded documents list
+    if (documentsList && documentsList.length > 0) {
+      documentsList.forEach(doc => {
+        const docName = (doc.file_name || '').toLowerCase();
+        if (docName && textLower.includes(docName)) {
+          addMatch(doc.file_name, doc.file_url);
+        }
+      });
+    }
+
+    return matched;
+  };
+
   // Icon selector based on the type of intelligence report
   const getInsightIcon = (type) => {
     switch (type) {
@@ -74,8 +136,43 @@ const InsightCards = ({ insights }) => {
               {ins.description}
             </div>
             {ins.evidence && (
-              <div className="insight-evidence">
-                <strong>Evidence Source: </strong> {ins.evidence}
+              <div className="insight-evidence" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div>
+                  <strong>Evidence Source: </strong> {ins.evidence}
+                </div>
+                {(() => {
+                  const matchedDocs = findEvidenceDocuments(ins.evidence, timeline, documents);
+                  if (matchedDocs.length === 0) return null;
+                  
+                  return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
+                      <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', fontWeight: 600 }}>Source Record Link:</span>
+                      {matchedDocs.map((doc, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => onViewDocument && onViewDocument({ file_name: doc.file_name, file_url: doc.file_url })}
+                          style={{
+                            background: 'rgba(20, 184, 166, 0.04)',
+                            border: '1px solid rgba(20, 184, 166, 0.2)',
+                            color: 'var(--color-primary)',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          <Eye size={12} />
+                          {doc.file_name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

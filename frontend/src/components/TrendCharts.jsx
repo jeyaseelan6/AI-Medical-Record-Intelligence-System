@@ -3,39 +3,9 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { Info, TrendingUp, Activity, Heart, Sparkles, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../context/AuthContext.jsx';
 
-const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
+const TrendCharts = ({ timeline, patientId, onViewDocument, forecast, loadingForecast, errorForecast }) => {
   const [expandedMetric, setExpandedMetric] = useState('');
   const [activeReadingIdx, setActiveReadingIdx] = useState(0);
-  const [forecast, setForecast] = useState(null);
-  const [loadingForecast, setLoadingForecast] = useState(false);
-  const [errorForecast, setErrorForecast] = useState(null);
-
-  useEffect(() => {
-    const fetchForecast = async () => {
-      if (!patientId || !timeline || timeline.length === 0) {
-        setForecast(null);
-        return;
-      }
-
-      setLoadingForecast(true);
-      setErrorForecast(null);
-      try {
-        const response = await api.get(`/insights/forecast/${patientId}`);
-        if (response.data && response.data.success) {
-          setForecast(response.data.data);
-        } else {
-          setErrorForecast(response.data?.message || 'Failed to load forecast data');
-        }
-      } catch (err) {
-        console.error('[Forecast Fetch Error]', err.message);
-        setErrorForecast('Unable to compile AI health forecast.');
-      } finally {
-        setLoadingForecast(false);
-      }
-    };
-
-    fetchForecast();
-  }, [timeline, patientId]);
 
   // Extract all numerical vitals and dynamically group them by normalized test names
   const groupedData = useMemo(() => {
@@ -250,10 +220,12 @@ const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
                   const forecastItem = (forecast.forecast_metrics || []).find(
                     item => item.metric.toLowerCase() === key.toLowerCase()
                   );
-                  if (forecastItem) {
-                    return (forecastItem.projected_trend || '').toLowerCase() !== 'insufficient data';
+                  if (!forecastItem) {
+                    return false;
                   }
-                  return true;
+                  
+                  const trend = (forecastItem.projected_trend || '').toLowerCase();
+                  return ['improving', 'stable', 'declining', 'risk of elevation'].includes(trend);
                 });
 
                 if (visibleKeys.length === 0) {
