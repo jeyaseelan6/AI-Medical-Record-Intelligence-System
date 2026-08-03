@@ -100,6 +100,36 @@ const Login = () => {
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? <div className="spinner"></div> : 'Sign In'}
           </button>
+          
+          <button
+            type="button"
+            onClick={() => window.Supademo && window.Supademo.open('cmsdh2tev000r0b0jt7mznvro')}
+            style={{
+              width: '100%',
+              backgroundColor: 'transparent',
+              color: 'var(--color-primary)',
+              border: '1px solid var(--color-primary)',
+              padding: '12px 24px',
+              borderRadius: 'var(--radius-md)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'var(--transition-fast)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginTop: '12px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(20, 184, 166, 0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            💡 Try the Tour Demo
+          </button>
         </form>
 
         <div className="auth-footer">
