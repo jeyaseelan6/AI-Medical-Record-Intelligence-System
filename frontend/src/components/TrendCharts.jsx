@@ -122,7 +122,17 @@ const TrendCharts = ({ timeline, patientId }) => {
       {/* Dynamic Tab Selector & Chart Canvas (Only if vitals keys exist) */}
       {metricKeys.length > 0 ? (
         <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+          {/* Segmented Controls Tab Selector */}
+          <div style={{ 
+            display: 'inline-flex', 
+            backgroundColor: 'var(--color-bg)', 
+            border: '1px solid var(--color-border)',
+            padding: '4px',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '24px',
+            gap: '4px',
+            flexWrap: 'wrap'
+          }}>
             {metricKeys.map((key) => {
               const firstPoint = groupedData[key][0];
               const unitLabel = firstPoint && firstPoint.unit ? ` (${firstPoint.unit})` : '';
@@ -131,17 +141,21 @@ const TrendCharts = ({ timeline, patientId }) => {
               return (
                 <button
                   key={key}
-                  className={`btn-secondary ${isActive ? 'active' : ''}`}
-                  style={{ 
-                    fontSize: '12.5px', 
-                    padding: '6px 14px',
-                    backgroundColor: isActive ? 'var(--color-primary-light)' : 'var(--color-surface)',
-                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
-                    fontWeight: isActive ? '600' : '400',
-                    borderRadius: '20px'
-                  }}
                   onClick={() => setSelectedMetric(key)}
+                  style={{ 
+                    fontSize: '12px', 
+                    padding: '6px 14px',
+                    backgroundColor: isActive ? 'var(--color-surface)' : 'transparent',
+                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    border: 'none',
+                    fontWeight: isActive ? '600' : '500',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                    border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+                    transition: 'all 0.15s ease',
+                    outline: 'none'
+                  }}
                 >
                   {key}{unitLabel}
                 </button>
@@ -149,10 +163,34 @@ const TrendCharts = ({ timeline, patientId }) => {
             })}
           </div>
 
+          {/* Latest Metric value readout */}
+          {activeData.length > 0 && (
+            <div style={{ 
+              marginBottom: '20px', 
+              padding: '12px 18px', 
+              backgroundColor: 'rgba(20, 184, 166, 0.02)', 
+              borderLeft: '4px solid var(--color-primary)', 
+              borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: '8px'
+            }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Latest Reading:
+              </span>
+              <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
+                {activeData[activeData.length - 1].val} {activeData[activeData.length - 1].unit}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', opacity: 0.8 }}>
+                recorded on {activeData[activeData.length - 1].displayDate || activeData[activeData.length - 1].date}
+              </span>
+            </div>
+          )}
+
           {/* Chart Canvas / Single Point Card */}
           {activeData.length > 1 ? (
-            <div style={{ width: '100%', height: 200, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-              <ResponsiveContainer width="100%" height={200}>
+            <div style={{ width: '100%', height: 220, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '24px' }}>
+              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
