@@ -574,7 +574,7 @@ const Dashboard = () => {
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
                     Chronological tracking of body temperature and weight vitals extracted from record documents.
                   </p>
-                  <TrendCharts timeline={timeline} patientId={selectedPatientId} />
+                  <TrendCharts timeline={timeline} patientId={selectedPatientId} onViewDocument={setPreviewDoc} />
                 </div>
               )}
 

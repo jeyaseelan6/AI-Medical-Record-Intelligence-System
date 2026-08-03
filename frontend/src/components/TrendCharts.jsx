@@ -3,7 +3,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { Info, TrendingUp, Activity, Heart, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
 import { api } from '../context/AuthContext.jsx';
 
-const TrendCharts = ({ timeline, patientId }) => {
+const TrendCharts = ({ timeline, patientId, onViewDocument }) => {
   const [selectedMetric, setSelectedMetric] = useState('');
   const [forecast, setForecast] = useState(null);
   const [loadingForecast, setLoadingForecast] = useState(false);
@@ -34,7 +34,7 @@ const TrendCharts = ({ timeline, patientId }) => {
     };
 
     fetchForecast();
-  }, [timeline]);
+  }, [timeline, patientId]);
 
   // Extract all numerical vitals and dynamically group them by normalized test names
   const groupedData = useMemo(() => {
@@ -86,7 +86,11 @@ const TrendCharts = ({ timeline, patientId }) => {
           displayDate: dateFormatted,
           val: numVal,
           unit: lab.unit || '',
-          display: `${numVal}${lab.unit || ''}`
+          display: `${numVal}${lab.unit || ''}`,
+          document_name: event.document_name,
+          document_url: event.document_url,
+          doctor_name: event.doctor_name,
+          event_date: event.event_date
         });
       });
     });
@@ -118,146 +122,240 @@ const TrendCharts = ({ timeline, patientId }) => {
   const activeData = groupedData[selectedMetric] || [];
 
   return (
-    <div>
-      {/* Dynamic Tab Selector & Chart Canvas (Only if vitals keys exist) */}
-      {metricKeys.length > 0 ? (
-        <>
-          {/* Segmented Controls Tab Selector */}
-          <div style={{ 
-            display: 'inline-flex', 
-            backgroundColor: 'var(--color-bg)', 
-            border: '1px solid var(--color-border)',
-            padding: '4px',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: '24px',
-            gap: '4px',
-            flexWrap: 'wrap'
-          }}>
-            {metricKeys.map((key) => {
-              const firstPoint = groupedData[key][0];
-              const unitLabel = firstPoint && firstPoint.unit ? ` (${firstPoint.unit})` : '';
-              const isActive = selectedMetric === key;
-              
-              return (
-                <button
-                  key={key}
-                  onClick={() => setSelectedMetric(key)}
-                  style={{ 
-                    fontSize: '12px', 
-                    padding: '6px 14px',
-                    backgroundColor: isActive ? 'var(--color-surface)' : 'transparent',
-                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    border: 'none',
-                    fontWeight: isActive ? '600' : '500',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
-                    border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
-                    transition: 'all 0.15s ease',
-                    outline: 'none'
-                  }}
-                >
-                  {key}{unitLabel}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Latest Metric value readout */}
-          {activeData.length > 0 && (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', alignItems: 'start' }}>
+      
+      {/* LEFT COLUMN: Quantitative Data (vitals charts and past comparison) */}
+      <div className="dashboard-card" style={{ padding: '24px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+        <h3 className="card-title" style={{ marginBottom: '18px', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
+          <Activity size={18} style={{ color: 'var(--color-primary)' }} />
+          <span>Vitals & Metric History</span>
+        </h3>
+        
+        {metricKeys.length > 0 ? (
+          <>
+            {/* Segmented Controls Tab Selector */}
             <div style={{ 
-              marginBottom: '20px', 
-              padding: '12px 18px', 
-              backgroundColor: 'rgba(20, 184, 166, 0.02)', 
-              borderLeft: '4px solid var(--color-primary)', 
-              borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: '8px'
-            }}>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Latest Reading:
-              </span>
-              <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
-                {activeData[activeData.length - 1].val} {activeData[activeData.length - 1].unit}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', opacity: 0.8 }}>
-                recorded on {activeData[activeData.length - 1].displayDate || activeData[activeData.length - 1].date}
-              </span>
-            </div>
-          )}
-
-          {/* Chart Canvas / Single Point Card */}
-          {activeData.length > 1 ? (
-            <div style={{ width: '100%', height: 220, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '24px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                  <XAxis dataKey="date" stroke="var(--color-text-light)" tickFormatter={(tick) => tick.split(' (Ref')[0]} />
-                  <YAxis 
-                    domain={selectedMetric === 'Temperature' ? [35, 41] : ['auto', 'auto']} 
-                    stroke="var(--color-text-light)" 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'var(--color-surface)', 
-                      borderColor: 'var(--color-border)',
-                      borderRadius: 'var(--radius-sm)',
-                      boxShadow: 'var(--shadow-md)',
-                      fontSize: '12px'
-                    }}
-                    labelFormatter={(label, items) => {
-                      const item = items[0]?.payload;
-                      return item ? `Date: ${item.displayDate}` : label;
-                    }}
-                    formatter={(value, name, props) => [`${value} ${props.payload.unit || ''}`, selectedMetric]}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="val" 
-                    stroke={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorVal)" 
-                    dot={{ r: 4, strokeWidth: 1 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          ) : activeData.length === 1 ? (
-            <div style={{ 
-              backgroundColor: 'var(--color-bg)',
+              display: 'inline-flex', 
+              backgroundColor: 'var(--color-bg)', 
               border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px 20px',
+              padding: '4px',
+              borderRadius: 'var(--radius-sm)',
               marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
+              gap: '4px',
+              alignSelf: 'start',
+              flexWrap: 'wrap'
             }}>
-              <div>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Single Vital Reading Recorded
+              {metricKeys.map((key) => {
+                const firstPoint = groupedData[key][0];
+                const unitLabel = firstPoint && firstPoint.unit ? ` (${firstPoint.unit})` : '';
+                const isActive = selectedMetric === key;
+                
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedMetric(key)}
+                    style={{ 
+                      fontSize: '12px', 
+                      padding: '6px 14px',
+                      backgroundColor: isActive ? 'var(--color-surface)' : 'transparent',
+                      color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                      border: 'none',
+                      fontWeight: isActive ? '600' : '500',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                      border: isActive ? '1px solid var(--color-border)' : '1px solid transparent',
+                      transition: 'all 0.15s ease',
+                      outline: 'none'
+                    }}
+                  >
+                    {key}{unitLabel}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Latest Metric value readout */}
+            {activeData.length > 0 && (
+              <div style={{ 
+                marginBottom: '16px', 
+                padding: '10px 14px', 
+                backgroundColor: 'rgba(20, 184, 166, 0.02)', 
+                borderLeft: '4px solid var(--color-primary)', 
+                borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Latest Reading:
                 </span>
-                <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-text-main)', marginTop: '4px', fontFamily: 'var(--font-display)' }}>
-                  {activeData[0].val} {activeData[0].unit}
+                <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
+                  {activeData[activeData.length - 1].val} {activeData[activeData.length - 1].unit}
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', opacity: 0.8 }}>
+                  recorded on {activeData[activeData.length - 1].displayDate || activeData[activeData.length - 1].date}
+                </span>
+              </div>
+            )}
+
+            {/* Chart Canvas / Single Point Card */}
+            {activeData.length > 1 ? (
+              <div style={{ width: '100%', height: 200, fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} stopOpacity={0.0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                    <XAxis dataKey="date" stroke="var(--color-text-light)" tickFormatter={(tick) => tick.split(' (Ref')[0]} />
+                    <YAxis 
+                      domain={selectedMetric === 'Temperature' ? [35, 41] : ['auto', 'auto']} 
+                      stroke="var(--color-text-light)" 
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'var(--color-surface)', 
+                        borderColor: 'var(--color-border)',
+                        borderRadius: 'var(--radius-sm)',
+                        boxShadow: 'var(--shadow-md)',
+                        fontSize: '12px'
+                      }}
+                      labelFormatter={(label, items) => {
+                        const item = items[0]?.payload;
+                        return item ? `Date: ${item.displayDate}` : label;
+                      }}
+                      formatter={(value, name, props) => [`${value} ${props.payload.unit || ''}`, selectedMetric]}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="val" 
+                      stroke={selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6'} 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorVal)" 
+                      dot={{ r: 4, strokeWidth: 1 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : activeData.length === 1 ? (
+              <div style={{ 
+                backgroundColor: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '16px 20px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase' }}>
+                    Single Vital Reading Recorded
+                  </span>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-text-main)', marginTop: '4px', fontFamily: 'var(--font-display)' }}>
+                    {activeData[0].val} {activeData[0].unit}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)' }}>
+                  Recorded on: <strong>{activeData[0].date}</strong>
                 </div>
               </div>
-              <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)' }}>
-                Recorded on: <strong>{activeData[0].date}</strong>
+            ) : null}
+
+            {/* Historical Comparison Table (Compare previous records) */}
+            {activeData.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <h4 style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '10px', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <TrendingUp size={14} style={{ color: 'var(--color-primary)' }} />
+                  <span>{selectedMetric} Historical Readings Comparison</span>
+                </h4>
+                <div style={{ 
+                  backgroundColor: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden'
+                }}>
+                  {/* Table Header */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1.2fr 1fr 1.8fr', 
+                    padding: '8px 12px', 
+                    backgroundColor: 'var(--color-bg)', 
+                    borderBottom: '1px solid var(--color-border)',
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    color: 'var(--color-text-muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    <span>Visit Date</span>
+                    <span>Value</span>
+                    <span>Source Record</span>
+                  </div>
+
+                  {/* Table Rows (newest first) */}
+                  {[...activeData].reverse().map((point, pIdx) => (
+                    <div 
+                      key={pIdx} 
+                      style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1.2fr 1fr 1.8fr', 
+                        padding: '10px 12px', 
+                        borderBottom: pIdx === activeData.length - 1 ? 'none' : '1px solid var(--color-border)',
+                        fontSize: '12px',
+                        alignItems: 'center',
+                        color: 'var(--color-text-main)'
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>
+                        {new Date(point.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })}
+                      </span>
+                      <strong style={{ color: selectedMetric === 'Temperature' ? '#f43f5e' : '#14b8a6' }}>
+                        {point.val} {point.unit}
+                      </strong>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px' }}>
+                        {point.document_name && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            {onViewDocument && point.document_url ? (
+                              <button
+                                onClick={() => onViewDocument({ file_name: point.document_name, file_url: point.document_url })}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--color-primary)',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  textDecoration: 'underline',
+                                  fontWeight: 600,
+                                  textAlign: 'left'
+                                }}
+                              >
+                                {point.document_name}
+                              </button>
+                            ) : (
+                              <span style={{ color: 'var(--color-text-muted)' }}>{point.document_name}</span>
+                            )}
+                          </div>
+                        )}
+                        {point.doctor_name && (
+                          <span style={{ color: 'var(--color-text-light)', fontStyle: 'italic', fontSize: '10px' }}>
+                            via {point.doctor_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
-        </>
-      ) : (
-        <div style={{ marginBottom: '20px' }}>
+            )}
+          </>
+        ) : (
           <div className="alert-box alert-info" style={{ margin: '0' }}>
             <Info size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
@@ -267,20 +365,22 @@ const TrendCharts = ({ timeline, patientId }) => {
               </span>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* AI-Native Predictive Forecasting Panel */}
-      <div className="dashboard-card" style={{ marginTop: '24px', border: '1px solid var(--color-border)', padding: '20px' }}>
-        <h3 className="card-title" style={{ marginBottom: '12px', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
+      {/* RIGHT COLUMN: AI Trajectory Forecasting */}
+      <div className="dashboard-card" style={{ padding: '24px', minHeight: '400px' }}>
+        <h3 className="card-title" style={{ marginBottom: '18px', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
           <Sparkles size={18} style={{ color: 'var(--color-secondary)' }} />
           <span>AI Health Trajectory & Risk Forecast</span>
         </h3>
 
         {loadingForecast && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '8px' }}>
-            <RefreshCw size={24} className="spinner" style={{ color: 'var(--color-secondary)' }} />
-            <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)' }}>Analyzing timeline and generating 30-day health projections...</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', gap: '12px' }}>
+            <RefreshCw size={28} className="spinner" style={{ color: 'var(--color-secondary)' }} />
+            <span style={{ fontSize: '13.5px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', textAlign: 'center' }}>
+              Analyzing timeline logs and generating 30-day wellness forecasts...
+            </span>
           </div>
         )}
 
@@ -292,14 +392,14 @@ const TrendCharts = ({ timeline, patientId }) => {
         )}
 
         {!loadingForecast && !errorForecast && forecast && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Top Row: Wellness text + Cardiovascular Risk Badge */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-              <div style={{ flex: '1', minWidth: '250px' }}>
-                <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '4px', fontFamily: 'var(--font-display)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap-reverse', gap: '16px' }}>
+              <div style={{ flex: '1', minWidth: '220px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', marginBottom: '6px', fontFamily: 'var(--font-display)' }}>
                   30-Day Wellness Forecast
                 </h4>
-                <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.5', fontFamily: 'var(--font-body)' }}>
+                <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.6', fontFamily: 'var(--font-body)' }}>
                   {forecast.overall_wellness_forecast}
                 </p>
               </div>
@@ -335,7 +435,7 @@ const TrendCharts = ({ timeline, patientId }) => {
                     border: `1px solid ${riskStyle.border}`,
                     borderRadius: 'var(--radius-md)',
                     padding: '12px 18px',
-                    minWidth: '200px',
+                    minWidth: '180px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '4px',
@@ -371,7 +471,7 @@ const TrendCharts = ({ timeline, patientId }) => {
 
               return (
                 <div>
-                  <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '8px', fontFamily: 'var(--font-display)' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', marginBottom: '8px', fontFamily: 'var(--font-display)' }}>
                     Projected Vital Trajectories
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -389,16 +489,16 @@ const TrendCharts = ({ timeline, patientId }) => {
                           key={idx} 
                           style={{ 
                             display: 'grid', 
-                            gridTemplateColumns: '180px 140px 1fr', 
+                            gridTemplateColumns: '150px 130px 1fr', 
                             alignItems: 'center', 
-                            padding: '12px 16px', 
+                            padding: '12px 14px', 
                             backgroundColor: 'var(--color-bg)', 
                             border: '1px solid var(--color-border)', 
                             borderRadius: 'var(--radius-sm)',
-                            gap: '16px'
+                            gap: '12px'
                           }}
                         >
-                          {/* Col 1: Metric & Value */}
+                          {/* Col 1: Metric */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
                               {item.metric}
@@ -408,7 +508,7 @@ const TrendCharts = ({ timeline, patientId }) => {
                             </span>
                           </div>
 
-                          {/* Col 2: Trend Badge */}
+                          {/* Col 2: Badge */}
                           <div>
                             <span style={{ 
                               fontSize: '11px', 
@@ -420,14 +520,14 @@ const TrendCharts = ({ timeline, patientId }) => {
                               border: `1px solid ${colorStyles.border}`,
                               display: 'inline-block',
                               textAlign: 'center',
-                              minWidth: '110px'
+                              minWidth: '105px'
                             }}>
                               {item.projected_trend}
                             </span>
                           </div>
 
                           {/* Col 3: Rationale */}
-                          <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', lineHeight: '1.4', fontFamily: 'var(--font-body)' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.4', fontFamily: 'var(--font-body)' }}>
                             {item.rationale}
                           </div>
                         </div>
