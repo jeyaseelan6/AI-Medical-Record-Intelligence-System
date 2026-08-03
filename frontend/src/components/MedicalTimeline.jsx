@@ -14,6 +14,44 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
     }
   };
 
+  const getCategoryBadgeStyle = (category) => {
+    const type = (category || '').toLowerCase();
+    
+    let bg = 'rgba(148, 163, 184, 0.08)';
+    let color = 'var(--color-text-muted)';
+    let border = 'rgba(148, 163, 184, 0.2)';
+    
+    if (type.includes('prescription')) {
+      bg = 'rgba(16, 185, 129, 0.08)';
+      color = 'var(--color-success)';
+      border = 'rgba(16, 185, 129, 0.2)';
+    } else if (type.includes('report') || type.includes('lab')) {
+      bg = 'rgba(20, 184, 166, 0.08)';
+      color = 'var(--color-primary)';
+      border = 'rgba(20, 184, 166, 0.2)';
+    } else if (type.includes('discharge') || type.includes('summary')) {
+      bg = 'rgba(139, 92, 246, 0.08)';
+      color = '#8b5cf6';
+      border = 'rgba(139, 92, 246, 0.2)';
+    } else if (type.includes('notes') || type.includes('medical')) {
+      bg = 'rgba(245, 158, 11, 0.08)';
+      color = '#d97706';
+      border = 'rgba(245, 158, 11, 0.2)';
+    }
+    
+    return {
+      backgroundColor: bg,
+      color: color,
+      border: `1px solid ${border}`,
+      padding: '2px 10px',
+      borderRadius: '12px',
+      fontSize: '11px',
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px'
+    };
+  };
+
   if (!timeline || timeline.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)' }}>
@@ -35,15 +73,22 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
           <div key={event.id} className="timeline-event">
             <div className="timeline-marker"></div>
             <div className="timeline-content">
-              <div className="timeline-meta">
-                <span className="timeline-date">
-                  <Calendar size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
-                  {formatDate(event.event_date)}
-                </span>
-                {event.doctor_name && (
-                  <span className="timeline-doctor">
-                    <Stethoscope size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
-                    {event.doctor_name}
+              <div className="timeline-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <span className="timeline-date">
+                    <Calendar size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+                    {formatDate(event.event_date)}
+                  </span>
+                  {event.doctor_name && (
+                    <span className="timeline-doctor">
+                      <Stethoscope size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+                      {event.doctor_name}
+                    </span>
+                  )}
+                </div>
+                {event.document_category && (
+                  <span style={getCategoryBadgeStyle(event.document_category)}>
+                    {event.document_category}
                   </span>
                 )}
               </div>
@@ -118,9 +163,7 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                   borderTop: '1px dashed var(--color-border)',
                   paddingTop: '8px',
                   display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  gap: '8px'
+                  alignItems: 'center'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span>Source Record:</span>
@@ -148,19 +191,6 @@ const MedicalTimeline = ({ timeline, onViewDocument }) => {
                       <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>{event.document_name}</span>
                     )}
                   </div>
-                  {event.document_category && (
-                    <span style={{ 
-                      backgroundColor: 'rgba(13, 148, 136, 0.06)', 
-                      color: 'var(--color-primary)', 
-                      border: '1px solid rgba(13, 148, 136, 0.15)',
-                      padding: '1px 8px', 
-                      borderRadius: '12px',
-                      fontSize: '10px',
-                      fontWeight: 600
-                    }}>
-                      {event.document_category}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
