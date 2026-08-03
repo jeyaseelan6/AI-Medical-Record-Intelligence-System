@@ -267,46 +267,60 @@ const TrendCharts = ({ timeline, patientId }) => {
               </div>
 
               {/* Cardiovascular Risk Badge */}
-              <div style={{ 
-                backgroundColor: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 16px',
-                minWidth: '180px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-                boxShadow: 'var(--shadow-sm)'
-              }}>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Cardiovascular Risk Indicator
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Heart size={16} style={{ 
-                    color: forecast.cardiovascular_risk_projection === 'High' 
-                      ? 'var(--color-danger)' 
-                      : forecast.cardiovascular_risk_projection === 'Moderate'
-                      ? 'var(--color-warning)'
-                      : forecast.cardiovascular_risk_projection === 'Low'
-                      ? 'var(--color-success)'
-                      : 'var(--color-text-light)'
-                  }} />
-                  <span style={{ 
-                    fontSize: '15px', 
-                    fontWeight: 700, 
-                    color: forecast.cardiovascular_risk_projection === 'High' 
-                      ? 'var(--color-danger)' 
-                      : forecast.cardiovascular_risk_projection === 'Moderate'
-                      ? '#d97706'
-                      : forecast.cardiovascular_risk_projection === 'Low'
-                      ? 'var(--color-success)'
-                      : 'var(--color-text-main)',
-                    fontFamily: 'var(--font-display)'
+              {(() => {
+                const getRiskStyles = (risk) => {
+                  const level = (risk || '').toLowerCase();
+                  if (level === 'high') {
+                    return {
+                      bg: 'rgba(244, 63, 94, 0.04)',
+                      border: 'rgba(244, 63, 94, 0.15)',
+                      color: 'var(--color-danger)'
+                    };
+                  }
+                  if (level === 'moderate') {
+                    return {
+                      bg: 'rgba(245, 158, 11, 0.04)',
+                      border: 'rgba(245, 158, 11, 0.15)',
+                      color: '#d97706'
+                    };
+                  }
+                  return {
+                    bg: 'rgba(16, 185, 129, 0.04)',
+                    border: 'rgba(16, 185, 129, 0.15)',
+                    color: 'var(--color-success)'
+                  };
+                };
+                const riskStyle = getRiskStyles(forecast.cardiovascular_risk_projection);
+                return (
+                  <div style={{ 
+                    backgroundColor: riskStyle.bg,
+                    border: `1px solid ${riskStyle.border}`,
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 18px',
+                    minWidth: '200px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    boxShadow: 'var(--shadow-sm)'
                   }}>
-                    {forecast.cardiovascular_risk_projection}
-                  </span>
-                </div>
-              </div>
+                    <span style={{ fontSize: '10.5px', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.8 }}>
+                      Cardiovascular Risk
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Heart size={16} fill={riskStyle.color} style={{ color: riskStyle.color }} />
+                      <span style={{ 
+                        fontSize: '15px', 
+                        fontWeight: 800, 
+                        color: riskStyle.color,
+                        fontFamily: 'var(--font-display)',
+                        textTransform: 'uppercase'
+                      }}>
+                        {forecast.cardiovascular_risk_projection}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Middle Section: Vitals Projections List (Filtered to hide insufficient data) */}
@@ -336,41 +350,47 @@ const TrendCharts = ({ timeline, patientId }) => {
                         <div 
                           key={idx} 
                           style={{ 
-                            display: 'flex', 
-                            flexWrap: 'wrap', 
+                            display: 'grid', 
+                            gridTemplateColumns: '180px 140px 1fr', 
                             alignItems: 'center', 
-                            justifyContent: 'space-between',
-                            padding: '10px 14px', 
+                            padding: '12px 16px', 
                             backgroundColor: 'var(--color-bg)', 
                             border: '1px solid var(--color-border)', 
                             borderRadius: 'var(--radius-sm)',
-                            gap: '10px'
+                            gap: '16px'
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
+                          {/* Col 1: Metric & Value */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
                               {item.metric}
                             </span>
-                            <span style={{ fontSize: '11px', color: 'var(--color-text-light)', fontFamily: 'var(--font-body)' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', opacity: 0.85 }}>
                               Current: {item.current_status || 'N/A'}
                             </span>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          {/* Col 2: Trend Badge */}
+                          <div>
                             <span style={{ 
                               fontSize: '11px', 
                               fontWeight: 600, 
-                              padding: '2px 8px', 
-                              borderRadius: '12px',
+                              padding: '4px 10px', 
+                              borderRadius: '20px',
                               backgroundColor: colorStyles.bg,
                               color: colorStyles.text,
-                              border: `1px solid ${colorStyles.border}`
+                              border: `1px solid ${colorStyles.border}`,
+                              display: 'inline-block',
+                              textAlign: 'center',
+                              minWidth: '110px'
                             }}>
                               {item.projected_trend}
                             </span>
-                            <span style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-body)' }}>
-                              {item.rationale}
-                            </span>
+                          </div>
+
+                          {/* Col 3: Rationale */}
+                          <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', lineHeight: '1.4', fontFamily: 'var(--font-body)' }}>
+                            {item.rationale}
                           </div>
                         </div>
                       );
