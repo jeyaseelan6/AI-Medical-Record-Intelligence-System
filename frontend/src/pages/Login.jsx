@@ -130,6 +130,36 @@ const Login = () => {
           >
             💡 Try the Tour Demo
           </button>
+
+          <button
+            type="button"
+            onClick={() => window.openStorylaneTour && window.openStorylaneTour()}
+            style={{
+              width: '100%',
+              backgroundColor: 'transparent',
+              color: 'var(--color-secondary)',
+              border: '1px solid var(--color-secondary)',
+              padding: '12px 24px',
+              borderRadius: 'var(--radius-md)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'var(--transition-fast)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginTop: '12px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(14, 165, 233, 0.04)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            🛠️ Tools Presentation
+          </button>
         </form>
 
         <div className="auth-footer">
