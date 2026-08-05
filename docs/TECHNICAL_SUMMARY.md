@@ -43,7 +43,7 @@ MedAI is constructed as a modern, lightweight, high-performance web application 
 *   **Aesthetics & Style Engine**: Vanilla CSS design tokens (custom variables) are implemented instead of bloated UI frameworks to ensure complete control over rendering. Features custom webkit-scrollbars, hover-lift shadow transitions, glassmorphic layout badges, and desktop-responsive layouts.
 *   **Mobile Responsiveness & Clear UI/UX**: The interface utilizes flexible grids and CSS media queries. It transitions dynamically between desktop (sidebar layout) and mobile (collapsed drawer layout) screen heights.
 *   **User Interface Indicators**: Displays clear gender-specific profiles (using custom visual tags/badges for Male and Female) and separate patient cards.
-*   **Visual Presentation Layer**: Integrated **Lucide React** for clean medical iconography and **Supademo SDK** for interactive product tours.
+*   **Visual Presentation Layer**: Integrated **Lucide React** for clean medical iconography and **Storylane SDK** for interactive product tours.
 
 ### 1.2 Backend Engine
 *   **Node.js & Express**: Serves as the REST API controller layer using the Service-Repository pattern to decouple HTTP routing from business intelligence.

@@ -7,7 +7,7 @@ MedAI is a clinical decision-support platform digitizing unstructured records (P
 ┌──────────────────────────────────────────────┐
 │  FRONTEND: React 18 + Vite (SPA)             │
 │  - CSS Tokens, Responsive Mobile Grid Layout │
-│  - Lucide Icons, Supademo SDK Tours           │
+│  - Lucide Icons, Storylane SDK Tours           │
 └──────────────────────┬───────────────────────┘
                        │ HTTPS REST APIs
                        ▼
@@ -23,7 +23,7 @@ MedAI is a clinical decision-support platform digitizing unstructured records (P
 │  - Asset Storage: Cloudinary Object Store     │
 └──────────────────────────────────────────────┘
 
-*   **Frontend**: React 18, Vite. Mobile-responsive layout, separate patient profile cards, gender indicators (Male/Female icons). Lucide Icons, Supademo SDK.
+*   **Frontend**: React 18, Vite. Mobile-responsive layout, separate patient profile cards, gender indicators (Male/Female icons). Lucide Icons, Storylane SDK.
 *   **Backend**: Node.js, Express. Parses PDFs, report images (PNG/JPG), and handwritten clinical doctor notes.
 *   **Database & Vector Engine**: PostgreSQL (Neon Cloud), pgvector (3072-dimension embeddings for semantic search). Cloudinary for secure file storage.
 

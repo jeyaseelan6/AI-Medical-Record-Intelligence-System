@@ -1129,3 +1129,37 @@ a:hover {
   color: #dc2626 !important;
 }
 
+/* Dual Column Login Layout */
+.login-container {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 60px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 10px;
+}
+
+.login-demo-side {
+  flex: 1.25;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.login-card-side {
+  flex: 0.75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1024px) {
+  .login-container {
+    flex-direction: column;
+    gap: 40px;
+    padding: 10px;
+  }
+}
+

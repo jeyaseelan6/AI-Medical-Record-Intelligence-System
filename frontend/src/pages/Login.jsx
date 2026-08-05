@@ -103,7 +103,7 @@ const Login = () => {
           
           <button
             type="button"
-            onClick={() => window.Supademo && window.Supademo.open('cmsdh2tev000r0b0jt7mznvro')}
+            onClick={() => window.open('https://app.storylane.io/demo/ie7jkrobzxwi', '_blank')}
             style={{
               width: '100%',
               backgroundColor: 'transparent',
@@ -133,7 +133,7 @@ const Login = () => {
 
           <button
             type="button"
-            onClick={() => window.openStorylaneTour && window.openStorylaneTour()}
+            onClick={() => window.open('https://drive.google.com/file/d/19FBFtZrOlUisdcwOggePp88zU4l_mfcc/view?usp=sharing', '_blank')}
             style={{
               width: '100%',
               backgroundColor: 'transparent',

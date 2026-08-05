@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
@@ -27,23 +27,13 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
-  const [isTourOpen, setIsTourOpen] = useState(false);
-
-  const triggerSupademo = () => {
-    if (window.Supademo && typeof window.Supademo.open === 'function') {
-      window.Supademo.open('cmsdh2tev000r0b0jt7mznvro');
-    } else {
-      console.warn('Supademo SDK not loaded yet.');
-      alert('The interactive tour is initializing. Please wait a moment.');
-    }
+  const triggerTourDemo = () => {
+    window.open('https://app.storylane.io/demo/ie7jkrobzxwi', '_blank');
   };
 
-  useEffect(() => {
-    window.openStorylaneTour = () => setIsTourOpen(true);
-    return () => {
-      delete window.openStorylaneTour;
-    };
-  }, []);
+  const triggerToolsPresentation = () => {
+    window.open('https://drive.google.com/file/d/19FBFtZrOlUisdcwOggePp88zU4l_mfcc/view?usp=sharing', '_blank');
+  };
 
   return (
     <AuthProvider>
@@ -62,9 +52,9 @@ function App() {
             />
           </Routes>
           
-          {/* Floating interactive Supademo tour button */}
+          {/* Floating interactive Storylane tour button */}
           <button
-            onClick={triggerSupademo}
+            onClick={triggerTourDemo}
             style={{
               position: 'fixed',
               bottom: '24px',
@@ -100,7 +90,7 @@ function App() {
 
           {/* Floating interactive Storylane presentation button */}
           <button
-            onClick={() => setIsTourOpen(true)}
+            onClick={triggerToolsPresentation}
             style={{
               position: 'fixed',
               bottom: '76px',
@@ -133,91 +123,6 @@ function App() {
           >
             <span>🛠️ Tools Presentation</span>
           </button>
-
-          {/* Storylane Interactive Modal */}
-          {isTourOpen && (
-            <div 
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                backdropFilter: 'blur(8px)',
-                zIndex: 99999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '24px',
-                boxSizing: 'border-box'
-              }}
-              onClick={() => setIsTourOpen(false)}
-            >
-              <div 
-                style={{
-                  width: '100%',
-                  maxWidth: '900px',
-                  backgroundColor: 'var(--color-surface)',
-                  borderRadius: '12px',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
-                  position: 'relative',
-                  padding: '24px 16px 16px 16px',
-                  boxSizing: 'border-box'
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Close Button */}
-                <button
-                  onClick={() => setIsTourOpen(false)}
-                  style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '12px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--color-text-muted)',
-                    fontSize: '18px',
-                    fontWeight: 'bold',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                  title="Close Tour"
-                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-danger)'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
-                >
-                  ✕
-                </button>
-                
-                {/* Storylane Embed */}
-                <div className="sl-embed" style={{ position: 'relative', paddingBottom: 'calc(55.83% + 25px)', width: '100%', height: 0, transform: 'scale(1)' }}>
-                  <iframe 
-                    loading="lazy" 
-                    className="sl-demo" 
-                    src="https://app.storylane.io/demo/0hgpiigtlhch?embed=inline" 
-                    name="sl-embed" 
-                    allow="fullscreen" 
-                    allowFullScreen 
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      border: '1px solid rgba(63,95,172,0.15)',
-                      boxShadow: '0px 0px 18px rgba(26, 19, 72, 0.05)',
-                      borderRadius: '8px',
-                      boxSizing: 'border-box'
-                    }}
-                  ></iframe>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </Router>
     </AuthProvider>
