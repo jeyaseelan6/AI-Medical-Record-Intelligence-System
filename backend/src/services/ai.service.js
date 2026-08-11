@@ -628,4 +628,92 @@ Important: Do not prescribe any medication adjustments. Focus strictly on trend 
       }
     }
   }
+
+  /**
+   * AI-Native Specialty & Care-Type Reasoning Engine (Round 2)
+   * Analyzes structured clinical findings and context to deduce recommended specialty, care type,
+   * confidence, alternative specialties, clinical basis, and uncertainty.
+   * 
+   * @param {Object} clinicalContext - Structured finding and evidence context
+   * @returns {Promise<Object>} Structured recommendation reasoning matching Round 2 schema
+   */
+  static async reasonCareSpecialty(clinicalContext) {
+    const systemPrompt = `
+You are an expert Clinical Care Navigation and Medical Specialty Triage AI.
+Your responsibility is to analyze structured clinical findings detected in a patient's medical records and determine the most appropriate healthcare specialty or care category for professional consultation.
+
+You must follow these strict clinical safety rules:
+1. NEVER diagnose the patient or claim they have a specific disease.
+2. NEVER invent clinical evidence, symptoms, lab values, or medications not present in the provided context.
+3. NEVER assume a narrow, overly specific sub-specialty unless the clinical evidence and diagnosis clearly justify it.
+4. When the finding is ambiguous, non-specific, low-confidence, or multi-system, PREFER "General Practice" or "Internal Medicine" as the primary recommended specialty.
+5. Allowed care types are strictly one of:
+   - "primary_care" (General Physician, Family Medicine, Internal Medicine)
+   - "specialist" (e.g., Cardiology, Endocrinology, Gastroenterology, Nephrology, Pulmonology, Neurology, Dermatology, Orthopedics, Oncology, etc.)
+   - "pharmacist" (for medication interactions, dosage duplications, prescription discrepancies, or drug queries)
+   - "urgent_care" (for severe, critical, or rapidly destabilizing vital/lab abnormalities)
+6. For medication-related concerns (e.g., duplicate prescriptions, conflicting dosages, drug interactions), determine whether a Clinical Pharmacist, Prescribing Physician, or Primary Care Physician is the best initial point of review.
+7. Provide realistic alternative specialties (e.g., if Cardiology is recommended, Internal Medicine or General Practice may be valid alternatives).
+8. State clear, concise, evidence-based reasoning ("reason") explaining why this care type is suggested, citing the specific evidence points ("clinicalBasis").
+9. If evidence is sparse, insufficient, or uncertain, set "uncertainty" to true and explain why general evaluation is safer.
+
+Return STRICT JSON matching this exact schema:
+{
+  "recommendedSpecialty": "string (e.g., 'Cardiology', 'Internal Medicine', 'General Practice', 'Clinical Pharmacology', 'Endocrinology', etc.)",
+  "careType": "primary_care" | "specialist" | "pharmacist" | "urgent_care",
+  "reason": "Clear explanation of why this professional type is suggested based on the records.",
+  "confidence": 0.0 to 1.0 (float representing reasoning certainty),
+  "alternativeSpecialties": [
+    {
+      "specialty": "string",
+      "confidence": 0.0 to 1.0,
+      "rationale": "Brief rationale for why this alternative is viable"
+    }
+  ],
+  "clinicalBasis": [
+    "List of direct evidence points or observations from the finding context that informed this recommendation"
+  ],
+  "uncertainty": boolean
 }
+`;
+
+    const userPrompt = `Clinical Finding Context:\n${JSON.stringify(clinicalContext, null, 2)}`;
+
+    if (provider === 'openai') {
+      if (!openaiClient) {
+        throw new Error('OpenAI client is not initialized. Please configure a valid OPENAI_API_KEY.');
+      }
+      try {
+        const response = await openaiClient.chat.completions.create({
+          model: REASON_MODEL_NAME,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        return this.cleanJsonParse(response.choices[0].message.content);
+      } catch (error) {
+        console.error('[AI Service Error] OpenAI specialty reasoning failed:', error.message);
+        throw error;
+      }
+    } else {
+      if (!genAI) {
+        throw new Error('Google Gemini client is not initialized. Please configure a valid GEMINI_API_KEY.');
+      }
+      try {
+        const model = genAI.getGenerativeModel({
+          model: REASON_MODEL_NAME,
+          generationConfig: { responseMimeType: 'application/json' }
+        });
+        const result = await model.generateContent([systemPrompt, userPrompt]);
+        const text = result.response.text();
+        return this.cleanJsonParse(text);
+      } catch (error) {
+        console.error('[AI Service Error] Gemini specialty reasoning failed:', error.message);
+        throw error;
+      }
+    }
+  }
+}
+
