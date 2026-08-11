@@ -2,6 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Drop tables if they exist (clean setup)
+DROP TABLE IF EXISTS recommendation_sessions CASCADE;
 DROP TABLE IF EXISTS embeddings CASCADE;
 DROP TABLE IF EXISTS chat_messages CASCADE;
 DROP TABLE IF EXISTS ai_insights CASCADE;
@@ -109,6 +110,32 @@ CREATE TABLE chat_messages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 10. Recommendation Sessions Table (Round 2 Care Navigation Audit)
+CREATE TABLE IF NOT EXISTS recommendation_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    insight_id INTEGER REFERENCES ai_insights(id) ON DELETE SET NULL,
+    issue_type VARCHAR(100),
+    risk_level VARCHAR(50),
+    clinical_summary TEXT,
+    recommended_care_type VARCHAR(100),
+    recommended_specialty VARCHAR(100),
+    alternative_specialties JSONB DEFAULT '[]'::jsonb,
+    specialty_reason TEXT,
+    confidence_score NUMERIC(5,2),
+    location_query VARCHAR(255),
+    normalized_location VARCHAR(255),
+    latitude NUMERIC(10,7),
+    longitude NUMERIC(10,7),
+    availability_preference VARCHAR(50),
+    search_radius_km NUMERIC(6,2) DEFAULT 25.0,
+    total_providers_found INTEGER DEFAULT 0,
+    providers_result JSONB DEFAULT '[]'::jsonb,
+    status VARCHAR(50) DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =========================================================================
 -- DATABASE OPTIMIZATION & INDEXES
 -- =========================================================================
@@ -131,3 +158,7 @@ CREATE INDEX idx_lab_results_event ON lab_results(medical_event_id);
 CREATE INDEX idx_ai_insights_patient ON ai_insights(patient_id);
 CREATE INDEX idx_embeddings_document ON embeddings(document_id);
 CREATE INDEX idx_chat_messages_patient ON chat_messages(patient_id);
+CREATE INDEX idx_recommendation_sessions_user_id ON recommendation_sessions(user_id);
+CREATE INDEX idx_recommendation_sessions_patient_id ON recommendation_sessions(patient_id);
+CREATE INDEX idx_recommendation_sessions_created_at ON recommendation_sessions(created_at DESC);
+CREATE INDEX idx_recommendation_sessions_specialty ON recommendation_sessions(recommended_specialty);
