@@ -715,5 +715,86 @@ Return STRICT JSON matching this exact schema:
       }
     }
   }
+
+  /**
+   * AI-Native Semantic Specialty Matcher
+   * Evaluates the semantic and clinical relevance between an AI-recommended specialty
+   * and a batch of candidate healthcare providers.
+   * 
+   * @param {string} recommendedSpecialty - e.g. "Cardiology", "Endocrinology"
+   * @param {string} careType - e.g. "specialist", "pharmacist", "primary_care"
+   * @param {Array<Object>} candidates - Array of { id, name, category, facilityType }
+   * @returns {Promise<Array<Object>>} Array of { id, score, rationale }
+   */
+  static async matchProviderSpecialtiesSemantic(recommendedSpecialty, careType, candidates = []) {
+    if (!candidates || candidates.length === 0) return [];
+
+    const systemPrompt = `
+You are an expert Clinical Directory Semantic Matcher.
+Your task is to evaluate the clinical relevance between a recommended healthcare specialty and candidate healthcare providers.
+
+Instructions:
+1. For each candidate provider, evaluate their clinical and domain relevance to the recommended specialty (${recommendedSpecialty}) and care category (${careType}).
+2. Assign a relevance score between 15 and 40 points:
+   - 38 - 40 points: Exact or synonymous specialty focus (e.g. Cardiology matching "Heart & Vascular Centre", "Cardiac Care Clinic", "Cardiovascular Specialist"; Endocrinology matching "Diabetes & Hormone Clinic", "Thyroid & Endocrine Care").
+   - 32 - 37 points: Multidisciplinary facility or strong care-type match (e.g. licensed pharmacy for pharmacist care, or general hospital with comprehensive specialty wings).
+   - 25 - 31 points: General primary care clinic or outpatient hospital facility for initial evaluation/referral.
+   - 15 - 24 points: Generic or unrelated healthcare facility.
+3. Provide a concise 1-sentence clinical rationale explaining the semantic match.
+4. Never invent providers. Only evaluate the given candidate IDs.
+
+Return STRICT JSON:
+{
+  "matches": [
+    {
+      "id": "string matching candidate id",
+      "score": number between 15 and 40,
+      "rationale": "Concise rationale for semantic match"
+    }
+  ]
 }
+`;
+
+    const userPrompt = `Recommended Specialty: ${recommendedSpecialty}\nCare Category: ${careType}\n\nCandidate Providers:\n${JSON.stringify(candidates.map(c => ({ id: c.id, name: c.name, category: c.category, facilityType: c.facilityType })), null, 2)}`;
+
+    if (provider === 'openai') {
+      if (!openaiClient) {
+        throw new Error('OpenAI client is not initialized.');
+      }
+      try {
+        const response = await openaiClient.chat.completions.create({
+          model: REASON_MODEL_NAME,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        });
+        const parsed = this.cleanJsonParse(response.choices[0].message.content);
+        return Array.isArray(parsed.matches) ? parsed.matches : [];
+      } catch (error) {
+        console.error('[AI Service Error] OpenAI semantic matching failed:', error.message);
+        throw error;
+      }
+    } else {
+      if (!genAI) {
+        throw new Error('Google Gemini client is not initialized.');
+      }
+      try {
+        const model = genAI.getGenerativeModel({
+          model: REASON_MODEL_NAME,
+          generationConfig: { responseMimeType: 'application/json' }
+        });
+        const result = await model.generateContent([systemPrompt, userPrompt]);
+        const text = result.response.text();
+        const parsed = this.cleanJsonParse(text);
+        return Array.isArray(parsed.matches) ? parsed.matches : [];
+      } catch (error) {
+        console.error('[AI Service Error] Gemini semantic matching failed:', error.message);
+        throw error;
+      }
+    }
+  }
+}
+
 
