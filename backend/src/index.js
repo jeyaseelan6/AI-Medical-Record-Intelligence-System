@@ -10,6 +10,7 @@ import documentRoutes from './routes/document.routes.js';
 import timelineRoutes from './routes/timeline.routes.js';
 import insightRoutes from './routes/insight.routes.js';
 import qaRoutes from './routes/qa.routes.js';
+import recommendationRoutes from './routes/recommendation.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -41,6 +42,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/ask', qaRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // Fallback for unregistered paths (404)
 app.use((req, res, next) => {
