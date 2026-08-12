@@ -53,11 +53,6 @@ const CareRecommendation = ({
   // Pre-configured Sri Lankan regional quick-select location chips
   const QUICK_LOCATIONS = ['Jaffna', 'Colombo', 'Kandy', 'Galle', 'Negombo', 'Batticaloa'];
 
-  const sanitizeBookingUrl = (url) => {
-    if (!url) return 'https://doc.lk/channel/';
-    return url.replace(/doc990\.lk/g, 'doc.lk').replace(/www\.doc\.lk/g, 'doc.lk');
-  };
-
   // Initialize from initialFinding if passed, or restore previous search from session cache strictly for this patient
   useEffect(() => {
     if (initialFinding) {
@@ -69,14 +64,6 @@ const CareRecommendation = ({
         const cached = sessionStorage.getItem(`medai_care_search_${patientId}`);
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed.searchResult?.providers) {
-            parsed.searchResult.providers = parsed.searchResult.providers.map(p => {
-              if (p.channeling?.bookingUrl) {
-                p.channeling.bookingUrl = sanitizeBookingUrl(p.channeling.bookingUrl);
-              }
-              return p;
-            });
-          }
           setSearchResult(parsed.searchResult || null);
           setTriageResult(parsed.triageResult || null);
           if (parsed.locationQuery) setLocationQuery(parsed.locationQuery);
@@ -964,63 +951,6 @@ const CareRecommendation = ({
                             {prov.ranking?.primaryExplanation && (
                               <div style={{ backgroundColor: 'var(--color-bg)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '12px', color: 'var(--color-text-main)', marginBottom: '10px' }}>
                                 <strong>Match Reason:</strong> {prov.ranking.primaryExplanation}
-                              </div>
-                            )}
-
-                            {/* Channeling & Available Specialists Section */}
-                            {(prov.channeling?.available || (prov.doctors && prov.doctors.length > 0)) && (
-                              <div style={{
-                                margin: '8px 0 12px 0',
-                                padding: '10px 14px',
-                                backgroundColor: 'rgba(13, 148, 136, 0.04)',
-                                border: '1px solid rgba(13, 148, 136, 0.15)',
-                                borderRadius: 'var(--radius-sm)',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                                gap: '10px'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <div style={{ padding: '5px', backgroundColor: 'rgba(13, 148, 136, 0.1)', borderRadius: '6px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center' }}>
-                                    <Stethoscope size={15} />
-                                  </div>
-                                  <div>
-                                    <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--color-text-main)' }}>
-                                      {prov.doctors?.[0]?.name || `Consultant ${triageResult?.recommendedSpecialty || 'Specialist'}`}
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
-                                      <span>{prov.channeling?.platform || 'Doc990 / Hospital Channeling'}</span>
-                                      {prov.channeling?.hotline && <span>• Hotline: {prov.channeling.hotline}</span>}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {prov.channeling?.bookingUrl && (
-                                  <a
-                                    href={sanitizeBookingUrl(prov.channeling.bookingUrl)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      padding: '5px 12px',
-                                      backgroundColor: 'var(--color-primary)',
-                                      color: 'white',
-                                      fontSize: '11.5px',
-                                      fontWeight: 700,
-                                      borderRadius: 'var(--radius-sm)',
-                                      textDecoration: 'none',
-                                      boxShadow: 'var(--shadow-sm)',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    className="btn-primary"
-                                  >
-                                    <span>Channel Doctor</span>
-                                    <ExternalLink size={11} />
-                                  </a>
-                                )}
                               </div>
                             )}
 

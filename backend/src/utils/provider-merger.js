@@ -1,12 +1,11 @@
 import { findGovernmentFacilityMatch } from '../data/sri-lanka-health-facilities.js';
-import { ChannelingAdapter } from '../services/adapters/channeling.adapter.js';
 import { calculateDistanceKm, deduplicateProviders } from './provider-normalizer.js';
 
 /**
  * ProviderMerger
  * 
  * Aggregates and merges heterogeneous provider records from OpenStreetMap,
- * Google Places API, Sri Lanka Ministry of Health MFL, and Doc990 into ONE unified
+ * Google Places API, and Sri Lanka Ministry of Health MFL into ONE unified
  * trustworthy MedAI Provider entity.
  * 
  * Guarantees:
@@ -18,8 +17,7 @@ import { calculateDistanceKm, deduplicateProviders } from './provider-normalizer
 export class ProviderMerger {
 
   /**
-   * Merges and enriches a list of baseline providers with Google Places, Government MOH verification,
-   * and legitimate Doctor Channeling availability.
+   * Merges and enriches a list of baseline providers with Google Places and Government MOH verification.
    * 
    * @param {Array<Object>} baseProviders - Baseline providers (e.g. from OSM)
    * @param {Array<Object>} googlePlacesProviders - Optional providers from Google Places
@@ -43,9 +41,7 @@ export class ProviderMerger {
       const unified = {
         ...prov,
         sources: [prov.source || 'openstreetmap'],
-        governmentVerification: null,
-        channeling: null,
-        doctors: []
+        governmentVerification: null
       };
 
       unifiedMap.set(prov.id, unified);
@@ -91,9 +87,7 @@ export class ProviderMerger {
         const unifiedG = {
           ...gProv,
           sources: ['google_places'],
-          governmentVerification: null,
-          channeling: null,
-          doctors: []
+          governmentVerification: null
         };
         unifiedMap.set(gProv.id, unifiedG);
       }
@@ -101,9 +95,8 @@ export class ProviderMerger {
 
     const unifiedList = Array.from(unifiedMap.values());
 
-    // 3. Enrich each unified provider with Government MOH Verification & Channeling Data
+    // 3. Enrich each unified provider with Government MOH Verification Data
     for (const p of unifiedList) {
-      // 3A: Government Verification
       const govMatch = findGovernmentFacilityMatch(p.name, p.latitude, p.longitude);
       if (govMatch) {
         p.governmentVerification = govMatch;
@@ -118,80 +111,83 @@ export class ProviderMerger {
           p.website = govMatch.website;
         }
       }
-
-      // 3B: Legitimate Doctor Channeling Availability
-      const chanDetails = ChannelingAdapter.getChannelingDetails(p, targetSpecialty);
-      if (chanDetails && chanDetails.available) {
-        p.channeling = chanDetails;
-        if (!p.sources.includes('doc990_channeling')) {
-          p.sources.push('doc990_channeling');
-        }
-        if (targetSpecialty) {
-          p.doctors = [
-            {
-              name: `Consultant ${targetSpecialty}`,
-              specialty: targetSpecialty,
-              channelingAvailable: true,
-              platform: chanDetails.platform,
-              bookingUrl: chanDetails.bookingUrl
-            }
-          ];
-        }
-      }
     }
 
-    // 4. Final deduplication and distance sorting
-    const finalDeduplicated = deduplicateProviders(unifiedList);
-    finalDeduplicated.sort((a, b) => (a.distanceKm || 999) - (b.distanceKm || 999));
-
-    return finalDeduplicated;
+    // 4. Final spatial deduplication
+    return deduplicateProviders(unifiedList);
   }
 
   /**
-   * Determines if two provider representations correspond to the same physical facility.
+   * Evaluates if two provider objects refer to the exact same physical facility.
    * 
-   * @param {Object} a
-   * @param {Object} b
+   * @param {Object} a - First provider
+   * @param {Object} b - Second provider
    * @returns {boolean}
    */
   static areMatchingFacilities(a, b) {
     if (!a || !b || !a.name || !b.name) return false;
 
-    // Check exact external ID
-    if (a.externalId && b.externalId && a.externalId === b.externalId) {
-      return true;
-    }
+    // 1. Strict name similarity check
+    const nameA = this.cleanFacilityName(a.name);
+    const nameB = this.cleanFacilityName(b.name);
 
-    // Check spatial distance if coordinates are present
+    const isExactName = nameA === nameB;
+    const isSubstring = (nameA.length > 5 && nameB.length > 5) && (nameA.includes(nameB) || nameB.includes(nameA));
+
+    // Token similarity (handles word order inversions like "Teaching Hospital Jaffna" vs "Jaffna Teaching Hospital")
+    const tokensA = new Set(nameA.split(' ').filter(w => w.length > 2));
+    const tokensB = new Set(nameB.split(' ').filter(w => w.length > 2));
+    let commonTokens = 0;
+    for (const t of tokensA) {
+      if (tokensB.has(t)) commonTokens++;
+    }
+    const tokenOverlap = commonTokens / Math.min(tokensA.size, tokensB.size || 1);
+
+    // 2. Spatial proximity check
     if (a.latitude != null && a.longitude != null && b.latitude != null && b.longitude != null) {
       const distKm = calculateDistanceKm(a.latitude, a.longitude, b.latitude, b.longitude);
-      // If farther than 300 meters apart, consider them distinct facilities
-      if (distKm > 0.3) {
+
+      // Within 300 meters and similar name or token overlap -> Strong match
+      if (distKm <= 0.3 && (isExactName || isSubstring || tokenOverlap >= 0.5)) {
+        return true;
+      }
+
+      // Within 600 meters and high token overlap -> Match
+      if (distKm <= 0.6 && (isExactName || tokenOverlap >= 0.65)) {
+        return true;
+      }
+
+      // If more than 1.5 km apart, cannot be the same physical facility even if chain name matches
+      if (distKm > 1.5) {
         return false;
       }
     }
 
-    const normA = a.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const normB = b.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    if (normA === normB) return true;
-    if (normA.includes(normB) || normB.includes(normA)) return true;
-
-    // Token set overlap (e.g., "Jaffna Teaching Hospital" vs "Teaching Hospital Jaffna")
-    const tokensA = new Set(a.name.toLowerCase().split(/[\s,.-]+/).filter(t => t.length > 2));
-    const tokensB = new Set(b.name.toLowerCase().split(/[\s,.-]+/).filter(t => t.length > 2));
-
-    let commonCount = 0;
-    for (const t of tokensA) {
-      if (tokensB.has(t)) commonCount++;
-    }
-
-    const minTokens = Math.min(tokensA.size, tokensB.size);
-    if (minTokens > 0 && commonCount / minTokens >= 0.65) {
-      return true;
+    // 3. Fallback: Phone number match (Very high confidence)
+    if (a.phone && b.phone && a.phone !== 'Not listed' && b.phone !== 'Not listed') {
+      const cleanPhoneA = a.phone.replace(/[^0-9]/g, '');
+      const cleanPhoneB = b.phone.replace(/[^0-9]/g, '');
+      if (cleanPhoneA.length >= 7 && cleanPhoneB.length >= 7 && (cleanPhoneA === cleanPhoneB || cleanPhoneA.endsWith(cleanPhoneB) || cleanPhoneB.endsWith(cleanPhoneA))) {
+        return true;
+      }
     }
 
     return false;
+  }
+
+  /**
+   * Cleans and normalizes facility names for robust fuzzy matching.
+   * 
+   * @param {string} name
+   * @returns {string}
+   */
+  static cleanFacilityName(name) {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }
 
