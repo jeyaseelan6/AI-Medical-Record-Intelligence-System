@@ -82,7 +82,15 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   console.error('[Global Error Middleware] Caught exception:', err.stack || err.message);
   
-  const statusCode = err.status || 500;
+  if (err.errorCode === 'DATABASE_UNAVAILABLE' || err.isDatabaseUnavailable) {
+    return res.status(503).json({
+      success: false,
+      errorCode: 'DATABASE_UNAVAILABLE',
+      message: 'Database service is temporarily unavailable. Please try again.'
+    });
+  }
+
+  const statusCode = err.status || err.statusCode || 500;
   res.status(statusCode).json({
     success: false,
     message: err.message || 'An internal clinical engine error occurred.'
