@@ -4,7 +4,8 @@
  * Verified directory of public teaching hospitals, provincial general hospitals,
  * district general hospitals, base hospitals, and specialized institutes.
  * 
- * Used for government verification and official authority attribution.
+ * Used strictly for authentic government verification and official authority attribution.
+ * Zero-Fabrication Rule: Private or independent facilities must NEVER inherit government verification.
  */
 
 export const SRI_LANKA_GOVERNMENT_FACILITIES = [
@@ -191,8 +192,39 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
   }
 ];
 
+// Explicit private, sub-specialty, or independent markers that instantly disqualify a candidate
+const PRIVATE_DISQUALIFIERS = [
+  'private', 'dental', 'eye', 'ayurvedic', 'ayurveda', 'nursing home',
+  'memorial', 'co-operative', 'cooperative', 'channelling', 'dispensary',
+  'veterinary', 'pet', 'animal', 'suwasewana', 'asiri', 'nawaloka',
+  'durdans', 'lanka hospitals', 'kings', 'ninewells', 'hemas', 'delmon',
+  'pannipitiya', 'northern central', 'yaarl', 'noolaham', 'medi'
+];
+
+/**
+ * Calculates Haversine distance in kilometers between two GPS points.
+ */
+function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 /**
  * Searches and matches a provider against the Ministry of Health registry.
+ * Enforces strict, conservative identity verification:
+ * 1. Disqualifies any candidate with private, commercial, or independent keywords.
+ * 2. Requires exact canonical name, official alias, or full distinctive token set match.
+ * 3. Enforces tight spatial grounding (<= 1.5km from verified government coordinates).
  * 
  * @param {string} providerName
  * @param {number} latitude
@@ -202,39 +234,59 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
 export function findGovernmentFacilityMatch(providerName, latitude = null, longitude = null) {
   if (!providerName || typeof providerName !== 'string') return null;
 
-  const cleanName = providerName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const tokens = providerName.toLowerCase().split(/[\s,().-]+/).filter(t => t.length > 2);
+  const candidateLower = providerName.toLowerCase();
+  
+  // 1. Disqualify private, independent, or distinct sub-specialty clinics
+  for (const disq of PRIVATE_DISQUALIFIERS) {
+    // Check whole-word or delimited occurrence
+    const regex = new RegExp(`\\b${disq}\\b`, 'i');
+    if (regex.test(candidateLower)) {
+      return null;
+    }
+  }
+
+  const cleanCandidate = candidateLower.replace(/[^a-z0-9]/g, '');
+  const candidateTokens = candidateLower.split(/[\s,().-]+/).filter(t => t.length > 2);
 
   for (const fac of SRI_LANKA_GOVERNMENT_FACILITIES) {
     const mainClean = fac.name.toLowerCase().replace(/[^a-z0-9]/g, '');
     
-    // Direct or reverse inclusion
-    let matchesName = cleanName.includes(mainClean) || mainClean.includes(cleanName);
+    // Exact or near-exact canonical string match
+    let isExactNameMatch = cleanCandidate === mainClean;
 
-    // Check alternate names
-    if (!matchesName && Array.isArray(fac.alternateNames)) {
-      matchesName = fac.alternateNames.some(alt => {
+    // Check curated official alternate names
+    if (!isExactNameMatch && Array.isArray(fac.alternateNames)) {
+      isExactNameMatch = fac.alternateNames.some(alt => {
         const altClean = alt.toLowerCase().replace(/[^a-z0-9]/g, '');
-        return cleanName.includes(altClean) || altClean.includes(cleanName);
+        return cleanCandidate === altClean;
       });
     }
 
-    // Token set overlap check (e.g. "Jaffna General (Teaching) Hospital" matches "Teaching Hospital Jaffna")
-    if (!matchesName) {
-      const facTokens = fac.name.toLowerCase().split(/[\s,().-]+/).filter(t => t.length > 2);
-      const common = facTokens.filter(t => tokens.includes(t));
-      if (common.length >= 2 && (common.includes('jaffna') || common.includes('kandy') || common.includes('colombo') || common.includes('negombo') || common.includes('galle') || common.includes('vavuniya') || common.includes('teaching') || common.includes('hospital'))) {
-        matchesName = true;
+    // Distinctive token match: Extract significant distinctive tokens of the government hospital
+    // (excluding generic stop words like 'hospital', 'general', 'type', 'provincial', 'district', 'base')
+    let isDistinctiveTokenMatch = false;
+    if (!isExactNameMatch) {
+      const genericStopWords = new Set(['hospital', 'general', 'type', 'provincial', 'district', 'base', 'sri', 'lanka']);
+      const facDistinctiveTokens = fac.name
+        .toLowerCase()
+        .split(/[\s,().-]+/)
+        .filter(t => t.length > 2 && !genericStopWords.has(t));
+
+      if (facDistinctiveTokens.length > 0) {
+        // ALL distinctive tokens of the official government facility must be present in the candidate name
+        const allPresent = facDistinctiveTokens.every(t => candidateTokens.includes(t));
+        if (allPresent) {
+          isDistinctiveTokenMatch = true;
+        }
       }
     }
 
-    if (matchesName) {
-      // Distance confirmation if coordinates provided
+    if (isExactNameMatch || isDistinctiveTokenMatch) {
+      // 3. Strict spatial distance verification if coordinates are provided (must be within 1.5 km)
       if (latitude != null && longitude != null && fac.coordinates) {
-        const dLat = Math.abs(latitude - fac.coordinates.latitude);
-        const dLon = Math.abs(longitude - fac.coordinates.longitude);
-        if (dLat > 0.25 || dLon > 0.25) {
-          continue;
+        const distKm = calculateHaversineKm(latitude, longitude, fac.coordinates.latitude, fac.coordinates.longitude);
+        if (distKm != null && distKm > 1.5) {
+          continue; // Too far from official facility location -> Reject match
         }
       }
 

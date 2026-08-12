@@ -1,6 +1,36 @@
 import { findGovernmentFacilityMatch } from '../data/sri-lanka-health-facilities.js';
 import { calculateDistanceKm, deduplicateProviders } from './provider-normalizer.js';
 
+// Generic healthcare stop-words, facility tiers, and common regional city names
+// (must NOT be used as evidence of unique commercial facility identity)
+const GENERIC_HEALTHCARE_STOPWORDS = new Set([
+  // Facility types & taxonomy
+  'hospital', 'clinic', 'medical', 'centre', 'center', 'care', 'health',
+  'healthcare', 'pharmacy', 'dispensary', 'dr', 'doctor', 'physician',
+  'surgery', 'laboratories', 'laboratory', 'lab', 'service', 'services',
+  'general', 'national', 'teaching', 'district', 'base', 'provincial',
+  'type', 'specialized', 'institute', 'department',
+  // Common regional geographic identifiers
+  'sri', 'lanka', 'colombo', 'jaffna', 'kandy', 'galle', 'negombo',
+  'batticaloa', 'matara', 'kurunegala', 'ratnapura', 'anuradhapura',
+  'badulla', 'trincomalee', 'kalutara', 'gampaha', 'vavuniya'
+]);
+
+/**
+ * Normalizes a phone string into its core significant local digits (stripping +94 country code and leading 0).
+ */
+function extractSignificantPhone(phone) {
+  if (!phone || typeof phone !== 'string') return '';
+  let digits = phone.replace(/[^0-9]/g, '');
+  if (digits.startsWith('94')) {
+    digits = digits.slice(2);
+  }
+  if (digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  return digits;
+}
+
 /**
  * ProviderMerger
  * 
@@ -12,7 +42,8 @@ import { calculateDistanceKm, deduplicateProviders } from './provider-normalizer
  * - Exactly ONE card per physical facility.
  * - Prioritizes verified commercial/government contact details and ratings when available.
  * - Missing fields strictly preserved as null/"Not listed" (Zero Fabrication).
- * - Tracks merged sources transparently.
+ * - Never merges two distinct providers merely because they share generic words.
+ * - Rejects merges when listed phone numbers conflict.
  */
 export class ProviderMerger {
 
@@ -53,7 +84,7 @@ export class ProviderMerger {
 
       let matchedBase = null;
 
-      // Find match among existing unified providers using spatial proximity & name similarity
+      // Find match among existing unified providers using conservative spatial & identity criteria
       for (const [id, existing] of unifiedMap.entries()) {
         const isMatch = this.areMatchingFacilities(existing, gProv);
         if (isMatch) {
@@ -119,6 +150,11 @@ export class ProviderMerger {
 
   /**
    * Evaluates if two provider objects refer to the exact same physical facility.
+   * Enforces conservative identity matching:
+   * 1. Rejects merge if listed phone numbers conflict.
+   * 2. Removes generic healthcare stop words & geographic identifiers before comparing distinctive tokens.
+   * 3. Requires tight spatial proximity (<= 250m) and high distinctive token overlap (Jaccard >= 0.8).
+   * 4. For purely generic names, merges only if phone numbers match or co-located <= 50m.
    * 
    * @param {Object} a - First provider
    * @param {Object} b - Second provider
@@ -127,49 +163,71 @@ export class ProviderMerger {
   static areMatchingFacilities(a, b) {
     if (!a || !b || !a.name || !b.name) return false;
 
-    // 1. Strict name similarity check
+    // 1. Phone Conflict Check (If both providers have listed numbers and they differ, NEVER merge)
+    const sigPhoneA = extractSignificantPhone(a.phone);
+    const sigPhoneB = extractSignificantPhone(b.phone);
+    let hasPhoneMatch = false;
+
+    if (sigPhoneA.length >= 7 && sigPhoneB.length >= 7) {
+      hasPhoneMatch = sigPhoneA === sigPhoneB || sigPhoneA.endsWith(sigPhoneB) || sigPhoneB.endsWith(sigPhoneA);
+      if (!hasPhoneMatch) {
+        return false; // Conflicting phone numbers -> Definitely separate facilities!
+      }
+    }
+
     const nameA = this.cleanFacilityName(a.name);
     const nameB = this.cleanFacilityName(b.name);
-
     const isExactName = nameA === nameB;
-    const isSubstring = (nameA.length > 5 && nameB.length > 5) && (nameA.includes(nameB) || nameB.includes(nameA));
-
-    // Token similarity (handles word order inversions like "Teaching Hospital Jaffna" vs "Jaffna Teaching Hospital")
-    const tokensA = new Set(nameA.split(' ').filter(w => w.length > 2));
-    const tokensB = new Set(nameB.split(' ').filter(w => w.length > 2));
-    let commonTokens = 0;
-    for (const t of tokensA) {
-      if (tokensB.has(t)) commonTokens++;
-    }
-    const tokenOverlap = commonTokens / Math.min(tokensA.size, tokensB.size || 1);
 
     // 2. Spatial proximity check
+    let distKm = null;
     if (a.latitude != null && a.longitude != null && b.latitude != null && b.longitude != null) {
-      const distKm = calculateDistanceKm(a.latitude, a.longitude, b.latitude, b.longitude);
+      distKm = calculateDistanceKm(a.latitude, a.longitude, b.latitude, b.longitude);
 
-      // Within 300 meters and similar name or token overlap -> Strong match
-      if (distKm <= 0.3 && (isExactName || isSubstring || tokenOverlap >= 0.5)) {
-        return true;
-      }
-
-      // Within 600 meters and high token overlap -> Match
-      if (distKm <= 0.6 && (isExactName || tokenOverlap >= 0.65)) {
-        return true;
-      }
-
-      // If more than 1.5 km apart, cannot be the same physical facility even if chain name matches
-      if (distKm > 1.5) {
+      // If more than 500m apart, cannot be the same physical facility
+      if (distKm > 0.5) {
         return false;
       }
     }
 
-    // 3. Fallback: Phone number match (Very high confidence)
-    if (a.phone && b.phone && a.phone !== 'Not listed' && b.phone !== 'Not listed') {
-      const cleanPhoneA = a.phone.replace(/[^0-9]/g, '');
-      const cleanPhoneB = b.phone.replace(/[^0-9]/g, '');
-      if (cleanPhoneA.length >= 7 && cleanPhoneB.length >= 7 && (cleanPhoneA === cleanPhoneB || cleanPhoneA.endsWith(cleanPhoneB) || cleanPhoneB.endsWith(cleanPhoneA))) {
+    // 3. Extract distinctive tokens by stripping generic healthcare and geographic stop words
+    const distinctiveTokensA = nameA.split(' ').filter(w => w.length > 2 && !GENERIC_HEALTHCARE_STOPWORDS.has(w));
+    const distinctiveTokensB = nameB.split(' ').filter(w => w.length > 2 && !GENERIC_HEALTHCARE_STOPWORDS.has(w));
+
+    // Case 3A: Distinctive brand/proper-noun tokens exist (e.g. "Asiri", "Durdans", "Nawaloka", "Chavakachcheri")
+    if (distinctiveTokensA.length > 0 && distinctiveTokensB.length > 0) {
+      const setA = new Set(distinctiveTokensA);
+      const setB = new Set(distinctiveTokensB);
+      let commonDistinctive = 0;
+      for (const t of setA) {
+        if (setB.has(t)) commonDistinctive++;
+      }
+      
+      const unionSize = new Set([...setA, ...setB]).size;
+      const distinctiveJaccard = commonDistinctive / unionSize;
+
+      // Require high distinctive Jaccard overlap (>= 0.75) AND close proximity (<= 250m)
+      if (distinctiveJaccard >= 0.75 && (distKm == null || distKm <= 0.25)) {
         return true;
       }
+
+      // If exact distinctive name match and <= 350m
+      if (distinctiveJaccard === 1.0 && (distKm == null || distKm <= 0.35)) {
+        return true;
+      }
+    }
+
+    // Case 3B: Generic-only names (e.g. "Medical Centre" vs "Medical Centre", or "Kandy General Hospital" vs "National Hospital Kandy")
+    if (distinctiveTokensA.length === 0 && distinctiveTokensB.length === 0) {
+      // Both are generic or hospital tier titles at the exact same location (<= 50m)
+      if (distKm != null && distKm <= 0.05) {
+        return true;
+      }
+    }
+
+    // 4. Direct verified phone number match with close proximity (<= 300m)
+    if (hasPhoneMatch && (distKm == null || distKm <= 0.30)) {
+      return true;
     }
 
     return false;
