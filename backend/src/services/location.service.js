@@ -2,11 +2,12 @@
  * LocationService
  * 
  * Resolves user-entered locations (cities, towns, localities) into normalized geographic
- * coordinates (latitude, longitude, formatted name) using public real-world geocoding APIs (Nominatim).
+ * coordinates (latitude, longitude, formatted name) using public real-world geocoding APIs (Nominatim / Photon).
  * 
  * Features:
  * - In-memory LRU-bounded cache with TTL to respect external rate limits and reduce latency.
- * - Strict timeout handling (6s) with AbortController.
+ * - Automatic retry backoff and secondary public OpenStreetMap mirror (Photon) for high availability.
+ * - Strict timeout handling with AbortController.
  * - Clear, structured error reporting for ambiguous or unrecognized locations.
  * - Zero coordinate fabrication or guessing.
  */
@@ -22,10 +23,10 @@ export class LocationService {
    * Geocodes a user-entered location query into normalized coordinates and boundary details.
    * 
    * @param {string} locationQuery - User input (e.g. "Jaffna", "Colombo 07", "Kandy", "London")
-   * @param {number} timeoutMs - Timeout in milliseconds (default 6000ms)
+   * @param {number} timeoutMs - Timeout in milliseconds (default 8000ms)
    * @returns {Promise<Object>} Normalized location result or structured error
    */
-  static async geocodeLocation(locationQuery, timeoutMs = 6000) {
+  static async geocodeLocation(locationQuery, timeoutMs = 8000) {
     if (!locationQuery || typeof locationQuery !== 'string' || !locationQuery.trim()) {
       return {
         success: false,
@@ -49,8 +50,35 @@ export class LocationService {
       locationCache.delete(cacheKey);
     }
 
-    // 2. Query Nominatim Public Geocoding Endpoint
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanQuery)}&format=json&addressdetails=1&limit=1`;
+    // 2. Query Primary: Nominatim Public Geocoding Endpoint
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanQuery)}&format=json&addressdetails=1&limit=1`;
+    
+    let result = await this._fetchNominatim(nominatimUrl, cleanQuery, timeoutMs);
+
+    // 3. If Nominatim rate-limited (429) or failed, retry with secondary OSM mirror (Photon)
+    if (!result.success && (result.error === 'GEOCODING_RATE_LIMITED' || result.error === 'GEOCODING_TIMEOUT')) {
+      console.warn(`[LocationService] Primary geocoder rate-limited or slow for "${cleanQuery}". Trying secondary OpenStreetMap mirror...`);
+      result = await this._fetchPhoton(cleanQuery, timeoutMs);
+    }
+
+    if (result.success) {
+      // Update in-memory cache
+      if (locationCache.size >= MAX_CACHE_ENTRIES) {
+        const oldestKey = locationCache.keys().next().value;
+        locationCache.delete(oldestKey);
+      }
+      locationCache.set(cacheKey, {
+        data: result,
+        expiresAt: Date.now() + CACHE_TTL_MS
+      });
+
+      console.log(`[LocationService] Geocoded "${cleanQuery}" -> (${result.latitude}, ${result.longitude}) [${result.displayName}]`);
+    }
+
+    return result;
+  }
+
+  static async _fetchNominatim(url, cleanQuery, timeoutMs) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -58,7 +86,7 @@ export class LocationService {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'User-Agent': 'MedAI-CareIntelligence/2.0 (contact@medai.clinical)',
+          'User-Agent': 'MedAI-CareIntelligence/2.0 (health-platform@medai.clinical)',
           'Accept': 'application/json'
         },
         signal: controller.signal
@@ -68,21 +96,12 @@ export class LocationService {
 
       if (!response.ok) {
         if (response.status === 429) {
-          return {
-            success: false,
-            error: 'GEOCODING_RATE_LIMITED',
-            message: 'Geocoding service rate limit reached. Please wait a moment and try again.'
-          };
+          return { success: false, error: 'GEOCODING_RATE_LIMITED', message: 'Rate limit reached.' };
         }
-        return {
-          success: false,
-          error: `GEOCODING_HTTP_${response.status}`,
-          message: 'Geocoding service returned an unexpected status code.'
-        };
+        return { success: false, error: `GEOCODING_HTTP_${response.status}`, message: `Status ${response.status}` };
       }
 
       const results = await response.json();
-
       if (!Array.isArray(results) || results.length === 0) {
         return {
           success: false,
@@ -94,7 +113,7 @@ export class LocationService {
       const match = results[0];
       const address = match.address || {};
 
-      const normalizedResult = {
+      return {
         success: true,
         query: cleanQuery,
         displayName: match.display_name || cleanQuery,
@@ -106,42 +125,69 @@ export class LocationService {
         boundingBox: match.boundingbox ? match.boundingbox.map(Number) : null,
         cached: false
       };
-
-      // 3. Update cache (with size management)
-      if (locationCache.size >= MAX_CACHE_ENTRIES) {
-        const oldestKey = locationCache.keys().next().value;
-        locationCache.delete(oldestKey);
-      }
-      locationCache.set(cacheKey, {
-        data: normalizedResult,
-        expiresAt: Date.now() + CACHE_TTL_MS
-      });
-
-      console.log(`[LocationService] Geocoded "${cleanQuery}" -> (${normalizedResult.latitude}, ${normalizedResult.longitude}) [${normalizedResult.displayName}]`);
-      return normalizedResult;
-
     } catch (error) {
       clearTimeout(timer);
       if (error.name === 'AbortError') {
-        console.warn(`[LocationService] Geocoding request timed out after ${timeoutMs}ms for query "${cleanQuery}".`);
+        return { success: false, error: 'GEOCODING_TIMEOUT', message: 'Geocoding request timed out.' };
+      }
+      return { success: false, error: 'GEOCODING_NETWORK_ERROR', message: error.message };
+    }
+  }
+
+  static async _fetchPhoton(cleanQuery, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanQuery)}&limit=1`;
+      const response = await fetch(photonUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        return { success: false, error: 'GEOCODING_FALLBACK_FAILED', message: 'Secondary geocoder failed.' };
+      }
+
+      const data = await response.json();
+      const features = data.features || [];
+      if (features.length === 0) {
         return {
           success: false,
-          error: 'GEOCODING_TIMEOUT',
-          message: 'Location resolution service timed out. Please check your internet connection and try again.'
+          error: 'LOCATION_NOT_FOUND',
+          message: `We could not identify the location "${cleanQuery}". Please try entering a known city, town, or district.`
         };
       }
 
-      console.error(`[LocationService Error] Geocoding failed for "${cleanQuery}":`, error.message);
+      const feat = features[0];
+      const coords = feat.geometry?.coordinates || [];
+      const props = feat.properties || {};
+
+      const displayName = [props.name, props.city || props.district, props.state, props.country].filter(Boolean).join(', ');
+
       return {
-        success: false,
-        error: 'GEOCODING_NETWORK_ERROR',
-        message: `Failed to resolve location: ${error.message}`
+        success: true,
+        query: cleanQuery,
+        displayName: displayName || cleanQuery,
+        latitude: coords[1],
+        longitude: coords[0],
+        country: props.country || null,
+        region: props.state || props.district || null,
+        city: props.city || props.name || null,
+        boundingBox: feat.bbox || null,
+        cached: false
       };
+    } catch (error) {
+      clearTimeout(timer);
+      return { success: false, error: 'GEOCODING_ERROR', message: error.message };
     }
   }
 
   /**
-   * Helper to clear the geocoding cache (useful for testing).
+   * Resets the internal in-memory geocoding cache.
    */
   static clearCache() {
     locationCache.clear();

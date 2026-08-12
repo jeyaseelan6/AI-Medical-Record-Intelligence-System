@@ -1,22 +1,18 @@
-import { calculateDistanceKm, inferFacilityType, deduplicateProviders } from '../../utils/provider-normalizer.js';
+import { deduplicateProviders, calculateDistanceKm, inferFacilityType } from '../../utils/provider-normalizer.js';
 
 /**
  * OsmProviderAdapter
  * 
- * Fetches real healthcare facilities, clinics, hospitals, doctor offices, and pharmacies
- * from the OpenStreetMap ecosystem using fast, robust structured spatial amenity searches.
+ * Public OpenStreetMap Provider Search Adapter.
+ * Discovers real physical hospitals, clinics, pharmacies, and physicians within a spatial bounding box.
  * 
- * Guarantees:
- * - 100% real public geographic & healthcare directory data
- * - Zero synthetic/fabricated providers
- * - Distinguishes between healthcare facilities, hospitals, clinics, doctor offices, and pharmacies
- * - Exact distance calculation using Haversine formula
+ * Rules:
+ * - Real data only. Zero fabricated doctors, ratings, or contact details.
+ * - Missing fields strictly preserved as null.
+ * - OpenStreetMap attribution preserved.
  */
+
 export class OsmProviderAdapter {
-  
-  static get sourceName() {
-    return 'openstreetmap';
-  }
 
   /**
    * Searches for real healthcare facilities within a given radius around coordinates.
@@ -27,10 +23,10 @@ export class OsmProviderAdapter {
    * @param {number} params.radiusKm - Radius in kilometers (default: 25km)
    * @param {string} params.specialty - Target specialty (for context/filtering)
    * @param {string} params.careType - Care category ('primary_care', 'specialist', 'pharmacist', 'urgent_care')
-   * @param {number} params.timeoutMs - Timeout in ms (default: 8000ms)
+   * @param {number} params.timeoutMs - Timeout in ms (default: 12000ms)
    * @returns {Promise<Object>} Object containing normalized provider list
    */
-  static async searchProviders({ latitude, longitude, radiusKm = 25, specialty = null, careType = null, timeoutMs = 8000 }) {
+  static async searchProviders({ latitude, longitude, radiusKm = 25, specialty = null, careType = null, timeoutMs = 12000 }) {
     if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
       return {
         success: false,
@@ -59,31 +55,35 @@ export class OsmProviderAdapter {
       targetAmenities = ['hospital', 'clinic'];
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
     try {
-      // Parallel queries across target healthcare amenity categories
+      // Execute queries with individual fault tolerance
       const categoryPromises = targetAmenities.map(async (amenity) => {
         const url = `https://nominatim.openstreetmap.org/search?amenity=${encodeURIComponent(amenity)}&format=json&addressdetails=1&limit=15&viewbox=${minLon},${maxLat},${maxLon},${minLat}&bounded=1`;
-        
-        const res = await fetch(url, {
-          headers: {
-            'User-Agent': 'MedAI-CareIntelligence/2.0 (contact@medai.clinical)',
-            'Accept': 'application/json'
-          },
-          signal: controller.signal
-        });
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-        if (!res.ok) return [];
-        const items = await res.json();
-        return Array.isArray(items) ? items : [];
+        try {
+          const res = await fetch(url, {
+            headers: {
+              'User-Agent': 'MedAI-CareIntelligence/2.0 (health-platform@medai.clinical)',
+              'Accept': 'application/json'
+            },
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (!res.ok) return [];
+          const items = await res.json();
+          return Array.isArray(items) ? items : [];
+        } catch {
+          clearTimeout(timer);
+          return [];
+        }
       });
 
-      const rawResultsGroup = await Promise.all(categoryPromises);
-      clearTimeout(timer);
-
-      const allRawItems = rawResultsGroup.flat();
+      const settledResults = await Promise.allSettled(categoryPromises);
+      const allRawItems = settledResults
+        .filter(r => r.status === 'fulfilled' && Array.isArray(r.value))
+        .flatMap(r => r.value);
 
       // Normalize raw items
       const normalizedList = allRawItems.map((item) => {
@@ -127,9 +127,9 @@ export class OsmProviderAdapter {
           latitude: pLat,
           longitude: pLon,
           distanceKm: dist,
-          phone: null, // OSM Nominatim does not expose phone in basic view; preserved as null
+          phone: null,
           website: null,
-          rating: null, // Strictly null (never fabricated)
+          rating: null,
           reviewCount: null,
           openingHours: null,
           source: 'openstreetmap',
@@ -142,32 +142,26 @@ export class OsmProviderAdapter {
         };
       }).filter(Boolean);
 
-      // Deduplicate
-      const deduplicated = deduplicateProviders(normalizedList);
+      // Deduplicate overlapping bounding boxes and sort by proximity
+      const uniqueProviders = deduplicateProviders(normalizedList);
+      uniqueProviders.sort((a, b) => (a.distanceKm || 999) - (b.distanceKm || 999));
 
-      // Sort by distance as initial baseline order
-      deduplicated.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
-
-      console.log(`[OsmProviderAdapter] Successfully retrieved ${deduplicated.length} real providers within ${radKm}km of (${latNum}, ${lonNum}).`);
+      console.log(`[OsmProviderAdapter] Successfully retrieved ${uniqueProviders.length} real providers within ${radiusKm}km of (${latNum}, ${lonNum}).`);
 
       return {
         success: true,
-        count: deduplicated.length,
-        providers: deduplicated,
+        total: uniqueProviders.length,
+        providers: uniqueProviders,
         source: 'openstreetmap',
-        sourceAttribution: '© OpenStreetMap contributors',
-        searchCoordinates: { latitude: latNum, longitude: lonNum },
-        searchRadiusKm: radKm
+        sourceAttribution: '© OpenStreetMap contributors'
       };
 
-    } catch (error) {
-      clearTimeout(timer);
-      console.error('[OsmProviderAdapter Error] Provider search failed:', error.message);
+    } catch (err) {
+      console.error('[OsmProviderAdapter Error] Provider search failed:', err.message);
       return {
         success: false,
-        error: error.name === 'AbortError' ? 'OSM_SEARCH_TIMEOUT' : 'OSM_SEARCH_ERROR',
-        message: error.name === 'AbortError' ? 'Provider search service timed out.' : `Provider search failed: ${error.message}`,
-        count: 0,
+        error: 'OSM_SERVICE_ERROR',
+        message: 'Healthcare provider directory is temporarily unreachable. Please try again.',
         providers: []
       };
     }
