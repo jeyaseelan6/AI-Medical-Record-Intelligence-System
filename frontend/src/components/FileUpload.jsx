@@ -177,7 +177,7 @@ const FileUpload = ({ patientId, onUploadSuccess }) => {
         <div className="alert-box alert-danger" style={{ marginTop: '16px' }}>
           <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
-            <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px' }}>Parsing Error</strong>
+            <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px' }}>Document Processing Notice</strong>
             <span style={{ fontSize: '12.5px', opacity: 0.95 }}>{error}</span>
           </div>
         </div>

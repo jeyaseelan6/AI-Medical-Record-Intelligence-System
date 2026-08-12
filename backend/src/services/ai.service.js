@@ -162,7 +162,7 @@ export class AiService {
 
     // Default: Gemini
     if (!genAI) {
-      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
+      throw new Error('AI analysis service is temporarily unavailable.');
     }
 
     try {
@@ -294,7 +294,7 @@ Format the output strictly as a JSON object matching this structure:
 
     // Default: Gemini
     if (!genAI) {
-      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY inside the backend environment variables.');
+      throw new Error('AI document processing is temporarily unavailable.');
     }
 
     try {
@@ -402,7 +402,7 @@ Important: Focus only on real issues. If there are no issues, return an empty ar
 
     // Default: Gemini
     if (!genAI) {
-      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
+      throw new Error('AI clinical insights service is temporarily unavailable.');
     }
 
     try {
@@ -542,7 +542,7 @@ Return a JSON structure:
 
     // Default: Gemini
     if (!genAI) {
-      throw new Error('Gemini AI Service is not initialized. Please configure a valid GEMINI_API_KEY.');
+      throw new Error('AI medical assistant is temporarily unavailable.');
     }
 
     try {
@@ -726,7 +726,7 @@ Return STRICT JSON matching this exact schema:
       }
     } else {
       if (!genAI) {
-        throw new Error('Google Gemini client is not initialized. Please configure a valid GEMINI_API_KEY.');
+        throw new Error('AI care specialty reasoning is temporarily unavailable.');
       }
       try {
         const model = genAI.getGenerativeModel({

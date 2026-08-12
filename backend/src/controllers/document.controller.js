@@ -214,9 +214,13 @@ export const uploadDocument = async (req, res) => {
       }
     }
 
+    const userMessage = (error.message && !error.message.includes('GEMINI_API_KEY') && !error.message.includes('API_KEY'))
+      ? error.message
+      : 'Document processing is temporarily unavailable. Please try again in a few moments.';
+
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to process document. Please try again.'
+      message: userMessage
     });
   }
 };
