@@ -672,6 +672,10 @@ const Dashboard = () => {
                     patientId={selectedPatientId} 
                     documents={documents}
                     onViewDocument={setPreviewDoc}
+                    onFindCare={(finding) => {
+                      setActiveCareFinding(finding);
+                      setWorkspaceTab('navigation');
+                    }}
                   />
                 </div>
               )}

@@ -480,6 +480,27 @@ Instructions:
 3. Never present the answer as a direct clinical diagnosis. The system must never self-diagnose or prescribe.
 4. Assess the safety risk of the question and answer (e.g., questions about drug interactions, allergies, dosage changes, or critical lab alerts should be classed as "High" or "Medium" risk).
 5. For ANY answer that is flagged as "Medium" or "High" risk, or where your confidence score is low (less than 80%), you MUST clearly write a recommendation to consult a doctor, physician, or pharmacist in the "recommendation" field.
+6. Determine Care Navigation Intent ("care_navigation"):
+   - Set "is_care_seeking" to true when the user:
+     * asks which doctor, specialist, or physician they should see
+     * asks for medical care, provider assistance, or where to go
+     * asks to find a doctor, clinic, or hospital
+     * describes a health concern or symptom where professional evaluation is reasonably being sought
+     * asks who they should consult regarding a medication conflict, interaction, or dosage concern
+     * describes an acute symptom requiring urgent medical evaluation
+   - Set "is_care_seeking" to false for purely informational questions such as:
+     * "What was my HbA1c on my last blood report?"
+     * "What medicines did I take?"
+     * "Explain my blood report."
+     * "What does this medication do?"
+   - When "is_care_seeking" is true:
+     * "suggested_specialty": Suggested clinical specialty (e.g. "Endocrinology", "Cardiology", "Clinical Pharmacology", "General Practice", "Pulmonology", "Neurology", "Gastroenterology", "Nephrology"). If there is insufficient evidence to identify a specific specialty, use "General Practice" or "Internal Medicine" rather than inventing a condition.
+     * "care_type": Exactly one of ["specialist", "urgent_care", "pharmacist", "primary_care"].
+     * "clinical_summary": Concise clinical summary of the user's health concern or question for care navigation handoff.
+   - For emergency symptoms (e.g. severe crushing chest pain, acute heart attack signs, stroke-like symptoms, acute severe breathing difficulty / cyanosis):
+     * "care_type": "urgent_care"
+     * "risk_level": "High"
+     * Advise urgent medical evaluation without claiming a definitive diagnosis.
 
 Return a JSON structure:
 {
@@ -487,7 +508,13 @@ Return a JSON structure:
   "evidence": "Direct quote or document source with date verifying the answer (e.g. 'Allergy noted in prescription_xyz.pdf from Sept 2025').",
   "confidence": Integer from 0 to 100 representing your reasoning confidence,
   "risk_level": "Low" | "Medium" | "High",
-  "recommendation": "Clinical warning/recommendation. MUST recommend consulting a doctor, practitioner, or pharmacist if risk is Medium/High or confidence < 80."
+  "recommendation": "Clinical warning/recommendation. MUST recommend consulting a doctor, practitioner, or pharmacist if risk is Medium/High or confidence < 80.",
+  "care_navigation": {
+    "is_care_seeking": boolean,
+    "suggested_specialty": "string or null",
+    "care_type": "specialist" | "urgent_care" | "pharmacist" | "primary_care" | null,
+    "clinical_summary": "string or null"
+  }
 }
 `;
 

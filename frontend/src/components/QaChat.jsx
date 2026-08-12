@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../context/AuthContext.jsx';
-import { Send, FileText, Check, ShieldAlert } from 'lucide-react';
+import { Send, FileText, Check, ShieldAlert, Compass, ArrowRight } from 'lucide-react';
 
-const QaChat = ({ patientId, documents = [], onViewDocument }) => {
+const QaChat = ({ patientId, documents = [], onViewDocument, onFindCare }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
@@ -99,7 +99,8 @@ const QaChat = ({ patientId, documents = [], onViewDocument }) => {
           evidence: responseData.evidence,
           confidence: responseData.confidence,
           riskLevel: responseData.risk_level,
-          recommendation: responseData.recommendation
+          recommendation: responseData.recommendation,
+          care_navigation: responseData.care_navigation
         };
         return updated;
       });
@@ -277,6 +278,106 @@ const QaChat = ({ patientId, documents = [], onViewDocument }) => {
                         </span>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Contextual Care Navigation Action Card */}
+                {msg.sender === 'ai' && !msg.isSystem && msg.care_navigation?.is_care_seeking && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: msg.care_navigation.care_type === 'urgent_care' ? 'rgba(239, 68, 68, 0.06)' : 'rgba(13, 148, 136, 0.06)',
+                    border: msg.care_navigation.care_type === 'urgent_care' ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(13, 148, 136, 0.25)',
+                    boxShadow: 'var(--shadow-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    animation: 'fadeIn 0.25s ease-out'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                        {msg.care_navigation.care_type === 'urgent_care' ? (
+                          <ShieldAlert size={16} style={{ color: '#ef4444' }} />
+                        ) : (
+                          <Compass size={16} style={{ color: 'var(--color-primary)' }} />
+                        )}
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          color: msg.care_navigation.care_type === 'urgent_care' ? '#ef4444' : 'var(--color-primary)'
+                        }}>
+                          {msg.care_navigation.care_type === 'urgent_care' ? '🚨 Urgent Medical Evaluation' : '🧭 Recommended Care'}
+                        </span>
+                      </div>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        backgroundColor: 'white',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-muted)'
+                      }}>
+                        {msg.care_navigation.care_type === 'urgent_care'
+                          ? 'Emergency Care'
+                          : msg.care_navigation.care_type === 'pharmacist'
+                          ? 'Clinical Pharmacy'
+                          : msg.care_navigation.care_type === 'primary_care'
+                          ? 'Primary Care'
+                          : 'Specialist Care'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '12.5px', color: 'var(--color-text-main)', lineHeight: '1.5' }}>
+                      {msg.care_navigation.care_type === 'urgent_care' ? (
+                        <span><strong>Immediate clinical evaluation may be needed.</strong> Please seek prompt care at an emergency facility or acute hospital.</span>
+                      ) : (
+                        <span>
+                          <strong>{msg.care_navigation.suggested_specialty || 'General Practice'}</strong>
+                          {msg.care_navigation.clinical_summary ? ` · ${msg.care_navigation.clinical_summary}` : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ paddingTop: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onFindCare) {
+                            onFindCare({
+                              issueType: 'chat_inquiry',
+                              riskLevel: msg.riskLevel?.toLowerCase() || (msg.care_navigation.care_type === 'urgent_care' ? 'high' : 'moderate'),
+                              clinicalSummary: msg.care_navigation.clinical_summary || msg.text || 'Clinical inquiry from assistant',
+                              suggestedSpecialty: msg.care_navigation.suggested_specialty || null,
+                              careType: msg.care_navigation.care_type || 'specialist'
+                            });
+                          }
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 14px',
+                          backgroundColor: msg.care_navigation.care_type === 'urgent_care' ? '#ef4444' : 'var(--color-primary)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                          transition: 'all 0.15s ease'
+                        }}
+                        className="btn-primary"
+                      >
+                        <Compass size={13} />
+                        <span>{msg.care_navigation.care_type === 'urgent_care' ? 'Find Emergency Care' : 'Find Local Care'}</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
