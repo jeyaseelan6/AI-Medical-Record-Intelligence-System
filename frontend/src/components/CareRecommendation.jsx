@@ -305,106 +305,158 @@ const CareRecommendation = ({
             {/* LEFT COLUMN: Finding Selector & AI Specialty Reasoning Card */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              {/* Step 1: Finding Context Selector */}
+              {/* Step 1: Health Concern Selector */}
               <div className="dashboard-card" style={{ padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertCircle size={16} style={{ color: 'var(--color-primary)' }} />
-                    <span>Select Clinical Finding</span>
+                    <AlertCircle size={17} style={{ color: 'var(--color-primary)' }} />
+                    <span>Choose a Health Concern</span>
                   </h3>
-                  {selectedFinding && onClearFinding && (
+                  {(selectedFinding || customConcern) && (
                     <button 
                       onClick={() => {
                         setSelectedFinding(null);
-                        onClearFinding();
+                        setCustomConcern('');
+                        if (onClearFinding) onClearFinding();
                         setTriageResult(null);
+                        setSearchResult(null);
                       }}
-                      style={{ fontSize: '11px', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                      style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                     >
                       Clear Selection
                     </button>
                   )}
                 </div>
 
-                {/* Pre-detected insights list */}
-                {insights && insights.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                      Detected Patient Risk Alerts:
+                {/* Path 1: Detected Patient Risk Alerts (Only if detected alerts exist) */}
+                {insights && insights.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Shield size={13} style={{ color: 'var(--color-primary)' }} />
+                      <span>Detected Patient Risk Alerts</span>
                     </label>
-                    {insights.map(ins => {
-                      const isSelected = selectedFinding?.id === ins.id;
-                      return (
-                        <div
-                          key={ins.id}
-                          onClick={() => {
-                            setSelectedFinding(ins);
-                            handleFetchTriageContext(ins);
-                          }}
-                          style={{
-                            padding: '10px 12px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-                            backgroundColor: isSelected ? 'var(--color-primary-light)' : 'var(--color-surface)',
-                            cursor: 'pointer',
-                            transition: 'var(--transition-fast)'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                            <span style={{ fontSize: '12.5px', fontWeight: 600, color: isSelected ? 'var(--color-primary)' : 'var(--color-text-main)' }}>
-                              {ins.insight_type.replace(/_/g, ' ').toUpperCase()}
-                            </span>
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(0,0,0,0.06)' }}>
-                              Conf {Math.round(ins.confidence_score || 80)}%
-                            </span>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {insights.map(ins => {
+                        const isSelected = selectedFinding?.id === ins.id;
+                        const formattedType = (ins.insight_type || 'Clinical Alert')
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, c => c.toUpperCase());
+
+                        return (
+                          <div
+                            key={ins.id}
+                            onClick={() => {
+                              setSelectedFinding(ins);
+                              setCustomConcern('');
+                              handleFetchTriageContext(ins);
+                            }}
+                            style={{
+                              padding: '11px 14px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                              backgroundColor: isSelected ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                              boxShadow: isSelected ? '0 0 0 1px var(--color-primary)' : 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '12.5px', fontWeight: 700, color: isSelected ? 'var(--color-primary)' : 'var(--color-text-main)' }}>
+                                {formattedType}
+                              </span>
+                              <span style={{ 
+                                fontSize: '10.5px', 
+                                padding: '2px 7px', 
+                                borderRadius: '10px', 
+                                backgroundColor: isSelected ? 'rgba(20, 184, 166, 0.15)' : 'rgba(0,0,0,0.06)',
+                                color: isSelected ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                fontWeight: 600
+                              }}>
+                                Conf {Math.round(ins.confidence_score || 80)}%
+                              </span>
+                            </div>
+                            <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.35 }}>
+                              {ins.description ? (ins.description.length > 95 ? ins.description.substring(0, 95) + '...' : ins.description) : 'Clinical finding.'}
+                            </p>
                           </div>
-                          <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.3 }}>
-                            {ins.description ? ins.description.substring(0, 95) + '...' : 'Clinical finding.'}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ padding: '12px', backgroundColor: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '14px' }}>
-                    No automated risk alerts detected for this patient. You can enter a custom concern or general review below.
+                        );
+                      })}
+                    </div>
+
+                    {/* Clear Separator: OR */}
+                    <div style={{ display: 'flex', alignItems: 'center', margin: '12px 0 6px 0', gap: '10px' }}>
+                      <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }}></div>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                        OR
+                      </span>
+                      <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }}></div>
+                    </div>
                   </div>
                 )}
 
-                {/* Custom Concern Input */}
+                {/* Path 2: Enter a Health Concern */}
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px' }}>
-                    Or Enter Clinical Concern / Symptom:
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-main)', display: 'block', marginBottom: '8px' }}>
+                    Enter a Health Concern
                   </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <input
                       type="text"
                       placeholder="e.g. High blood pressure, Diabetes review, Chest pain"
                       value={customConcern}
-                      onChange={(e) => setCustomConcern(e.target.value)}
+                      onChange={(e) => {
+                        setCustomConcern(e.target.value);
+                        if (selectedFinding) setSelectedFinding(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && customConcern.trim()) {
+                          setSelectedFinding(null);
+                          handleFetchTriageContext(null);
+                        }
+                      }}
                       style={{
-                        flex: 1,
-                        padding: '8px 12px',
+                        width: '100%',
+                        padding: '9px 12px',
                         fontSize: '12.5px',
                         borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--color-border)'
+                        border: '1px solid var(--color-border)',
+                        backgroundColor: 'var(--color-surface)',
+                        color: 'var(--color-text-main)'
                       }}
                     />
                     <button
-                      onClick={() => handleFetchTriageContext(null)}
+                      onClick={() => {
+                        setSelectedFinding(null);
+                        handleFetchTriageContext(null);
+                      }}
                       disabled={loadingTriage || (!customConcern.trim() && !selectedFinding)}
                       style={{
-                        padding: '8px 14px',
+                        width: '100%',
+                        padding: '9px 16px',
                         backgroundColor: 'var(--color-primary)',
                         color: 'white',
                         border: 'none',
                         borderRadius: 'var(--radius-sm)',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        cursor: (!customConcern.trim() && !selectedFinding) ? 'not-allowed' : 'pointer',
+                        opacity: (!customConcern.trim() && !selectedFinding) ? 0.6 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'var(--transition-fast)'
                       }}
                     >
-                      {loadingTriage ? <RefreshCw size={14} className="animate-spin" /> : 'Triage'}
+                      {loadingTriage ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Triaging...</span>
+                        </>
+                      ) : (
+                        <span>Triage</span>
+                      )}
                     </button>
                   </div>
                 </div>
