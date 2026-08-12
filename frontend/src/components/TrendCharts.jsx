@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Info, TrendingUp, Activity, Heart, Sparkles, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Info, TrendingUp, Activity, Heart, Sparkles, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, Compass } from 'lucide-react';
 import { api } from '../context/AuthContext.jsx';
 
-const TrendCharts = ({ timeline, patientId, onViewDocument, forecast, loadingForecast, errorForecast }) => {
+const TrendCharts = ({ timeline, patientId, onViewDocument, forecast, loadingForecast, errorForecast, onFindCare }) => {
   const [expandedMetric, setExpandedMetric] = useState('');
   const [activeReadingIdx, setActiveReadingIdx] = useState(0);
 
@@ -496,6 +496,37 @@ const TrendCharts = ({ timeline, patientId, onViewDocument, forecast, loadingFor
               {forecast.safety_disclaimer}
             </span>
           </div>
+
+          {onFindCare && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px' }}>
+              <button
+                onClick={() => onFindCare({
+                  issueType: 'trend_alert',
+                  riskLevel: forecast.overall_risk_level || 'moderate',
+                  clinicalSummary: `Negative trajectory or risk alert in health forecast: ${forecast.clinical_summary || 'Trajectory monitoring required.'}`,
+                  patientAge: null,
+                  patientGender: null
+                })}
+                style={{
+                  backgroundColor: 'var(--color-primary-light)',
+                  color: 'var(--color-primary)',
+                  border: '1px solid rgba(20, 184, 166, 0.3)',
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'var(--transition-fast)'
+                }}
+              >
+                <Compass size={14} />
+                <span>Find Local Care for this Forecast</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

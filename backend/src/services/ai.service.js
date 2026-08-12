@@ -735,13 +735,13 @@ Your task is to evaluate the clinical relevance between a recommended healthcare
 
 Instructions:
 1. For each candidate provider, evaluate their clinical and domain relevance to the recommended specialty (${recommendedSpecialty}) and care category (${careType}).
-2. Assign a relevance score between 15 and 40 points:
-   - 38 - 40 points: Exact or synonymous specialty focus (e.g. Cardiology matching "Heart & Vascular Centre", "Cardiac Care Clinic", "Cardiovascular Specialist"; Endocrinology matching "Diabetes & Hormone Clinic", "Thyroid & Endocrine Care").
-   - 32 - 37 points: Multidisciplinary facility or strong care-type match (e.g. licensed pharmacy for pharmacist care, or general hospital with comprehensive specialty wings).
-   - 25 - 31 points: General primary care clinic or outpatient hospital facility for initial evaluation/referral.
-   - 15 - 24 points: Generic or unrelated healthcare facility.
-3. Provide a concise 1-sentence clinical rationale explaining the semantic match.
-4. Never invent providers. Only evaluate the given candidate IDs.
+2. Assign a relevance score between 15 and 40 points and provide a precise rationale:
+   - 38 - 40 points: Direct specialty focus (e.g. Cardiology matching "Heart & Vascular Centre", "Cardiac Clinic"; Endocrinology matching "Diabetes & Hormone Clinic"). Rationale: "Specialized facility aligned with ${recommendedSpecialty} care."
+   - 32 - 37 points: Multidisciplinary hospital or direct care-type match (e.g. licensed pharmacy for pharmacist care, or teaching/general hospital). Rationale: "Comprehensive hospital facility suitable for multidisciplinary assessment and referral."
+   - 25 - 31 points: General outpatient medical clinic without dedicated specialty tags. Rationale: "General medical clinic suitable for initial assessment and referral."
+   - 15 - 24 points: Generic or unrelated facility. Rationale: "General medical facility suitable for initial assessment and referral."
+3. Do NOT claim that an unspecialized clinic or hospital is a dedicated specialty facility unless its name or category explicitly indicates that specialty.
+4. Never invent providers or ratings. Only evaluate the given candidate IDs.
 
 Return STRICT JSON:
 {

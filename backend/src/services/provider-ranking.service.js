@@ -5,24 +5,18 @@ import { AiService } from './ai.service.js';
  * 
  * Multi-Factor Deterministic & AI-Native Recommendation Ranking Engine.
  * 
- * Architecture:
- * 1. AI-Native Semantic Specialty Matching (0 - 40 pts)
- *    - Deep semantic reasoning (e.g. Cardiology -> "Heart & Vascular Centre", Endocrinology -> "Diabetes & Hormone Clinic").
- *    - Deterministic keyword taxonomy acts strictly as a resilient fallback/safety floor.
- * 2. Proximity / Distance Decay (0 - 30 pts)
- *    - Continuous Haversine decay curve.
- * 3. Reputation & Verification Signal (0 - 15 pts)
- *    - Real ratings/review signals when present; neutral baseline for unrated records.
- * 4. Data Completeness & Contact Readiness (0 - 10 pts)
- *    - Verified address, phone, and direct map navigation links.
- * 5. Availability Preference Alignment (0 - 5 pts)
- *    - Evaluates facility capability ("Likely suitable for your preference") without claiming false doctor openings.
+ * Explanation Hierarchy:
+ * 1. Direct Specialty Match -> "Specialized facility aligned with [Specialty] care."
+ * 2. Pharmacy / Pharmacist Care -> "Licensed pharmacy for prescription review and medication consultation."
+ * 3. Urgent Care -> "Full-service acute hospital / Walk-in clinic for prompt evaluation."
+ * 4. Alternative Specialty Match -> "Alternative care pathway aligned with [Alt Specialty]."
+ * 5. General / Primary Care Fallback -> "General medical clinic / hospital suitable for initial assessment and referral."
  */
 
 // Fallback keyword taxonomy for deterministic safety floor
 const FALLBACK_SPECIALTY_KEYWORDS = {
   cardiology: ['cardio', 'heart', 'cardiac', 'coronary', 'vascular', 'hypertension', 'ecg', 'cardiovascular'],
-  endocrinology: ['endocrine', 'diabetes', 'diabetic', 'thyroid', 'glucose', 'metabolism', 'hormone'],
+  endocrinology: ['endocrine', 'diabetes', 'diabetic', 'thyroid', 'glucose', 'metabolism', 'hormone', 'insulin'],
   nephrology: ['nephro', 'kidney', 'renal', 'dialysis', 'creatinine', 'urology', 'urinary'],
   gastroenterology: ['gastro', 'liver', 'hepat', 'digest', 'stomach', 'endoscopy', 'gi'],
   pulmonology: ['pulmo', 'chest', 'lung', 'respiratory', 'asthma', 'breathing', 'tb'],
@@ -32,13 +26,14 @@ const FALLBACK_SPECIALTY_KEYWORDS = {
   pediatrics: ['pediatric', 'child', 'baby', 'maternity', 'infant'],
   orthopedics: ['ortho', 'bone', 'joint', 'fracture', 'trauma'],
   dermatology: ['derma', 'skin', 'laser'],
-  general: ['general', 'family', 'physician', 'primary', 'clinic', 'hospital', 'medical centre', 'medical center', 'dispensary', 'health']
+  general: ['general practice', 'family practice', 'family medicine', 'general physician', 'primary physician', 'family doctor']
 };
 
 export class ProviderRankingService {
 
   /**
    * Deterministic fallback heuristic for specialty relevance scoring.
+   * Accurately distinguishes between direct specialty focus, care-type alignment, alternative pathways, and general facility fallbacks.
    * 
    * @param {Object} provider
    * @param {string} recommendedSpecialty
@@ -53,39 +48,11 @@ export class ProviderRankingService {
     const facilityType = provider.facilityType || 'healthcare_facility';
 
     const targetSpecClean = (recommendedSpecialty || 'General Practice').toLowerCase();
-    const altSpecsClean = (alternativeSpecialties || []).map(a => (a.specialty || '').toLowerCase());
+    const isTargetGeneral = targetSpecClean.includes('general') || targetSpecClean.includes('family') || targetSpecClean.includes('primary');
 
-    // 1. Direct specialty tag
-    if (provSpecialty && provSpecialty.includes(targetSpecClean)) {
-      return {
-        score: 40,
-        rationale: `Exact specialty focus: Dedicated ${recommendedSpecialty} care.`
-      };
-    }
-
-    // 2. Keyword cluster match
-    let targetKeywords = [];
-    for (const [key, words] of Object.entries(FALLBACK_SPECIALTY_KEYWORDS)) {
-      if (targetSpecClean.includes(key)) {
-        targetKeywords = words;
-        break;
-      }
-    }
-    if (targetKeywords.length === 0) {
-      targetKeywords = targetSpecClean.split(/[\s-]+/).filter(w => w.length > 3);
-    }
-
-    const matchesTarget = targetKeywords.some(kw => provName.includes(kw) || provCategory.includes(kw));
-    if (matchesTarget) {
-      return {
-        score: 38,
-        rationale: `Specialized facility matching ${recommendedSpecialty} care needs.`
-      };
-    }
-
-    // 3. Care type specifics
+    // 1. Direct Care Type: Pharmacist Specifics
     if (careType === 'pharmacist') {
-      if (facilityType === 'pharmacy' || provName.includes('pharmacy') || provName.includes('chemist') || provName.includes('dispensary')) {
+      if (facilityType === 'pharmacy' || provName.includes('pharmacy') || provName.includes('chemist') || provName.includes('dispensary') || provName.includes('pharmaceutical')) {
         return {
           score: 38,
           rationale: 'Licensed pharmacy for prescription review and medication consultation.'
@@ -99,6 +66,35 @@ export class ProviderRankingService {
       }
     }
 
+    // 2. Direct Specialty tag or category match (38 - 40 pts)
+    if (provSpecialty && provSpecialty.includes(targetSpecClean)) {
+      return {
+        score: 40,
+        rationale: `Specialized facility aligned with ${recommendedSpecialty} care.`
+      };
+    }
+
+    // 3. Keyword cluster match for recommended specialty
+    let targetKeywords = [];
+    for (const [key, words] of Object.entries(FALLBACK_SPECIALTY_KEYWORDS)) {
+      if (targetSpecClean.includes(key)) {
+        targetKeywords = words;
+        break;
+      }
+    }
+    if (targetKeywords.length === 0) {
+      targetKeywords = targetSpecClean.split(/[\s-]+/).filter(w => w.length > 3);
+    }
+
+    const matchesTargetSpecialty = targetKeywords.some(kw => provName.includes(kw) || provCategory.includes(kw));
+    if (matchesTargetSpecialty) {
+      return {
+        score: 38,
+        rationale: `Specialized facility aligned with ${recommendedSpecialty} care.`
+      };
+    }
+
+    // 4. Urgent Care Type Handling
     if (careType === 'urgent_care') {
       if (facilityType === 'hospital' || provName.includes('base hospital') || provName.includes('teaching hospital') || provName.includes('general hospital')) {
         return {
@@ -114,51 +110,71 @@ export class ProviderRankingService {
       }
     }
 
-    // 4. Alternative specialties match
-    for (const alt of altSpecsClean) {
-      let altKeywords = [];
-      for (const [key, words] of Object.entries(FALLBACK_SPECIALTY_KEYWORDS)) {
-        if (alt.includes(key)) {
-          altKeywords = words;
-          break;
+    // 5. Match against Specific Alternative Specialties (excluding generic fallbacks)
+    if (Array.isArray(alternativeSpecialties)) {
+      for (const altObj of alternativeSpecialties) {
+        const altName = (altObj.specialty || '').trim();
+        const altClean = altName.toLowerCase();
+        
+        if (altClean.includes('general') || altClean.includes('family') || altClean.includes('primary')) {
+          continue;
+        }
+
+        let altKeywords = [];
+        for (const [key, words] of Object.entries(FALLBACK_SPECIALTY_KEYWORDS)) {
+          if (altClean.includes(key)) {
+            altKeywords = words;
+            break;
+          }
+        }
+        if (altKeywords.length === 0) altKeywords = altClean.split(/[\s-]+/).filter(w => w.length > 3);
+
+        const matchesAlt = altKeywords.some(kw => provName.includes(kw) || provCategory.includes(kw));
+        if (matchesAlt) {
+          return {
+            score: 32,
+            rationale: `Alternative care pathway aligned with ${altName}.`
+          };
         }
       }
-      if (altKeywords.length === 0) altKeywords = alt.split(/[\s-]+/).filter(w => w.length > 3);
-
-      const matchesAlt = altKeywords.some(kw => provName.includes(kw) || provCategory.includes(kw));
-      if (matchesAlt) {
-        return {
-          score: 32,
-          rationale: `Alternative care pathway matching ${alt}.`
-        };
-      }
     }
 
-    // 5. Hospital Center
-    if (facilityType === 'hospital' || provName.includes('hospital') || provName.includes('teaching')) {
-      return {
-        score: 30,
-        rationale: 'Comprehensive hospital facility offering multidisciplinary clinical care.'
-      };
-    }
-
-    // 6. Clinic / Doctor Office
-    if (facilityType === 'clinic' || facilityType === 'doctors' || provName.includes('clinic') || provName.includes('centre') || provName.includes('center')) {
-      if (careType === 'primary_care' || targetSpecClean.includes('general') || targetSpecClean.includes('internal')) {
+    // 6. Target is Primary Care / General Practice
+    if (isTargetGeneral) {
+      if (facilityType === 'clinic' || facilityType === 'doctors') {
         return {
           score: 34,
           rationale: 'Primary care clinic suited for initial general medical evaluation.'
         };
       }
+      if (facilityType === 'hospital') {
+        return {
+          score: 32,
+          rationale: 'Comprehensive hospital facility offering general outpatient consultations.'
+        };
+      }
+    }
+
+    // 7. General Hospital Multidisciplinary Baseline (When unspecialized)
+    if (facilityType === 'hospital' || provName.includes('hospital') || provName.includes('nursing home')) {
       return {
-        score: 25,
-        rationale: 'Outpatient medical clinic available for initial triage and referral.'
+        score: 30,
+        rationale: 'Comprehensive hospital facility suitable for multidisciplinary assessment and referral.'
       };
     }
 
+    // 8. General Medical Clinic Baseline (When unspecialized)
+    if (facilityType === 'clinic' || facilityType === 'doctors' || provName.includes('clinic') || provName.includes('center') || provName.includes('centre')) {
+      return {
+        score: 25,
+        rationale: 'General medical clinic suitable for initial assessment and referral.'
+      };
+    }
+
+    // 9. Baseline Healthcare Facility
     return {
       score: 18,
-      rationale: 'Public healthcare facility in your area.'
+      rationale: 'General medical facility suitable for initial assessment and referral.'
     };
   }
 
@@ -324,7 +340,7 @@ export class ProviderRankingService {
 
     if (!skipAiSemantic && providers.length > 0) {
       try {
-        const candidateSlice = providers.slice(0, 30); // Semantic match top 30 candidates
+        const candidateSlice = providers.slice(0, 30);
         const aiMatches = await AiService.matchProviderSpecialtiesSemantic(
           recommendedSpecialty,
           careType,
@@ -336,7 +352,7 @@ export class ProviderRankingService {
             if (m && m.id && typeof m.score === 'number') {
               semanticMap.set(m.id, {
                 score: Math.max(15, Math.min(40, parseFloat(m.score.toFixed(1)))),
-                rationale: m.rationale || `AI evaluated relevance for ${recommendedSpecialty}.`
+                rationale: m.rationale || `Evaluated for ${recommendedSpecialty}.`
               });
             }
           });

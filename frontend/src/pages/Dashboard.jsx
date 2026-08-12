@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, api, API_URL } from '../context/AuthContext.jsx';
-import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { Activity, Plus, LogOut, User, Users, Clipboard, Info, AlertTriangle, ActivitySquare, HeartPulse, FolderOpen, Edit3, Trash2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Compass } from 'lucide-react';
 import FileUpload from '../components/FileUpload.jsx';
 import MedicalTimeline from '../components/MedicalTimeline.jsx';
 import DocumentHistory from '../components/DocumentHistory.jsx';
 import QaChat from '../components/QaChat.jsx';
 import InsightCards from '../components/InsightCards.jsx';
 import TrendCharts from '../components/TrendCharts.jsx';
+import CareRecommendation from '../components/CareRecommendation.jsx';
 
 const Dashboard = () => {
   const { user, logoutUser } = useAuth();
@@ -24,7 +25,8 @@ const Dashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [workspaceTab, setWorkspaceTab] = useState('records'); // 'records', 'trends', 'safety', 'assistant'
+  const [workspaceTab, setWorkspaceTab] = useState('records'); // 'records', 'trends', 'safety', 'assistant', 'navigation'
+  const [activeCareFinding, setActiveCareFinding] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [imageZoomed, setImageZoomed] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -521,6 +523,28 @@ const Dashboard = () => {
                 <Info size={15} />
                 <span>Clinical Assistant</span>
               </button>
+
+              <button 
+                onClick={() => setWorkspaceTab('navigation')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '12px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: workspaceTab === 'navigation' ? 600 : 500,
+                  color: workspaceTab === 'navigation' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  borderBottom: workspaceTab === 'navigation' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Compass size={15} />
+                <span>Care Navigation</span>
+              </button>
             </div>
 
 
@@ -603,6 +627,10 @@ const Dashboard = () => {
                     forecast={forecast}
                     loadingForecast={loadingForecast}
                     errorForecast={errorForecast}
+                    onFindCare={(finding) => {
+                      setActiveCareFinding(finding);
+                      setWorkspaceTab('navigation');
+                    }}
                   />
                 </div>
               )}
@@ -622,6 +650,10 @@ const Dashboard = () => {
                     timeline={timeline}
                     documents={documents}
                     onViewDocument={setPreviewDoc}
+                    onFindCare={(finding) => {
+                      setActiveCareFinding(finding);
+                      setWorkspaceTab('navigation');
+                    }}
                   />
                 </div>
               )}
@@ -642,6 +674,19 @@ const Dashboard = () => {
                     onViewDocument={setPreviewDoc}
                   />
                 </div>
+              )}
+
+              {/* Tab 5: Local Doctor & Care Navigation */}
+              {workspaceTab === 'navigation' && (
+                <CareRecommendation 
+                  patientId={selectedPatientId}
+                  patient={selectedPatient}
+                  initialFinding={activeCareFinding}
+                  onClearFinding={() => setActiveCareFinding(null)}
+                  insights={insights}
+                  forecast={forecast}
+                  onViewDocument={setPreviewDoc}
+                />
               )}
 
             </div>

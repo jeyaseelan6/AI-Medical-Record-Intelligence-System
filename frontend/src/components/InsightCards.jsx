@@ -1,7 +1,7 @@
 import React from 'react';
-import { ShieldAlert, AlertTriangle, TrendingUp, AlertCircle, Heart, Eye } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, TrendingUp, AlertCircle, Heart, Eye, Compass } from 'lucide-react';
 
-const InsightCards = ({ insights, timeline, documents, onViewDocument }) => {
+const InsightCards = ({ insights, timeline, documents, onViewDocument, onFindCare }) => {
   
   // Helper to trace and match files by names or dates mentioned in the AI evidence
   const findEvidenceDocuments = (evidenceText, timelineList, documentsList) => {
@@ -173,6 +173,33 @@ const InsightCards = ({ insights, timeline, documents, onViewDocument }) => {
                     </div>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* Contextual Care Recommendation Button */}
+            {onFindCare && (
+              <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => onFindCare(ins)}
+                  style={{
+                    backgroundColor: 'var(--color-primary-light)',
+                    color: 'var(--color-primary)',
+                    border: '1px solid rgba(20, 184, 166, 0.3)',
+                    padding: '5px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'var(--transition-fast)'
+                  }}
+                  title="Find nearby specialized doctors or clinics for this finding"
+                >
+                  <Compass size={13} />
+                  <span>Find Local Care / Doctor</span>
+                </button>
               </div>
             )}
           </div>
