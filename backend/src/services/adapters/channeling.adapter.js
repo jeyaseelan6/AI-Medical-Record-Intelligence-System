@@ -47,14 +47,11 @@ export class ChannelingAdapter {
 
     if (matchedConfig) {
       const specText = targetSpecialty ? targetSpecialty.trim() : null;
-      const searchUrl = specText 
-        ? `${matchedConfig.url}?specialization=${encodeURIComponent(specText)}&hospital=${encodeURIComponent(provider.name)}`
-        : matchedConfig.url;
 
       return {
         available: true,
         platform: matchedConfig.platform,
-        bookingUrl: searchUrl,
+        bookingUrl: matchedConfig.url,
         hotline: matchedConfig.hotline,
         targetSpecialty: specText,
         notes: `Consultant ${specText ? specText + ' ' : ''}channeling appointments available at this facility.`

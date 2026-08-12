@@ -42,6 +42,7 @@ const CareRecommendation = ({
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
   const [searchError, setSearchError] = useState(null);
+  const [displayCount, setDisplayCount] = useState(10); // Display Top 10 by default
 
   // Modal & History States
   const [selectedScoreBreakdown, setSelectedScoreBreakdown] = useState(null);
@@ -52,11 +53,41 @@ const CareRecommendation = ({
   // Pre-configured Sri Lankan regional quick-select location chips
   const QUICK_LOCATIONS = ['Jaffna', 'Colombo', 'Kandy', 'Galle', 'Negombo', 'Batticaloa'];
 
-  // Initialize from initialFinding if passed
+  // Initialize from initialFinding if passed, or restore previous search from session cache strictly for this patient
   useEffect(() => {
     if (initialFinding) {
       setSelectedFinding(initialFinding);
       handleFetchTriageContext(initialFinding);
+    } else if (patientId) {
+      // Restore previously generated providers and triage for THIS specific patient
+      try {
+        const cached = sessionStorage.getItem(`medai_care_search_${patientId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setSearchResult(parsed.searchResult || null);
+          setTriageResult(parsed.triageResult || null);
+          if (parsed.locationQuery) setLocationQuery(parsed.locationQuery);
+          if (parsed.searchRadius) setSearchRadius(parsed.searchRadius);
+          if (parsed.availabilityPref) setAvailabilityPref(parsed.availabilityPref);
+          setSelectedFinding(parsed.selectedFinding || null);
+          setCustomConcern(parsed.customConcern || '');
+        } else {
+          // If no search was run yet for this patient, keep results clean
+          setSearchResult(null);
+          setTriageResult(null);
+          setSelectedFinding(null);
+          setCustomConcern('');
+          setSearchError(null);
+          setTriageError(null);
+        }
+      } catch (e) {
+        console.warn('[CareRecommendation] Failed to restore cached search:', e.message);
+        setSearchResult(null);
+        setTriageResult(null);
+      }
+    } else {
+      setSearchResult(null);
+      setTriageResult(null);
     }
   }, [initialFinding, patientId]);
 
@@ -122,6 +153,7 @@ const CareRecommendation = ({
 
     setLoadingSearch(true);
     setSearchError(null);
+    setDisplayCount(10);
 
     try {
       const body = {
@@ -142,8 +174,24 @@ const CareRecommendation = ({
       const res = await api.post('/recommendations/search', body);
       if (res.data && res.data.success) {
         setSearchResult(res.data.data);
+        const resolvedSpecialty = res.data.data.specialty || triageResult;
         if (res.data.data.specialty) {
           setTriageResult(res.data.data.specialty);
+        }
+
+        // Cache to sessionStorage so results persist across tab and page switches
+        try {
+          sessionStorage.setItem(`medai_care_search_${patientId}`, JSON.stringify({
+            searchResult: res.data.data,
+            triageResult: resolvedSpecialty,
+            locationQuery,
+            searchRadius,
+            availabilityPref,
+            selectedFinding,
+            customConcern
+          }));
+        } catch (cacheErr) {
+          console.warn('[CareRecommendation] Cache save warning:', cacheErr.message);
         }
       } else {
         setSearchError(res.data?.message || 'No healthcare providers found in this area.');
@@ -758,9 +806,9 @@ const CareRecommendation = ({
                       </p>
                     </div>
                   ) : (
-                    /* Provider Cards List */
+                    /* Provider Cards List (Top 10 initially, expandable via Show More) */
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      {searchResult.providers.map((prov) => {
+                      {searchResult.providers.slice(0, displayCount).map((prov) => {
                         const rankScore = prov.ranking?.totalScore || 75;
                         const matchPct = prov.ranking?.matchScorePercent || Math.round(rankScore);
                         const isTop = prov.rank === 1;
@@ -1035,6 +1083,46 @@ const CareRecommendation = ({
                           </div>
                         );
                       })}
+
+                      {/* Show More Providers Pagination Action */}
+                      {searchResult.providers.length > displayCount && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '16px 0 8px 0' }}>
+                          <button
+                            type="button"
+                            onClick={() => setDisplayCount(prev => prev + 10)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '10px 24px',
+                              backgroundColor: 'var(--color-surface)',
+                              border: '1.5px solid var(--color-primary)',
+                              color: 'var(--color-primary)',
+                              borderRadius: 'var(--radius-md)',
+                              fontSize: '13px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              boxShadow: 'var(--shadow-sm)',
+                              transition: 'all 0.2s ease',
+                              fontFamily: 'var(--font-display)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--color-primary)';
+                              e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                              e.currentTarget.style.color = 'var(--color-primary)';
+                            }}
+                          >
+                            <span>Show 10 More Providers</span>
+                            <ChevronRight size={15} />
+                          </button>
+                          <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
+                            Showing {Math.min(displayCount, searchResult.providers.length)} of {searchResult.providers.length} discovered healthcare facilities
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
 

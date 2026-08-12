@@ -549,11 +549,11 @@ const Dashboard = () => {
 
 
 
-            {/* Tab Workspace Panels */}
+            {/* Tab Workspace Panels (Rendered with display toggling to preserve active provider lists and state) */}
             <div className="workspace-panel" style={{ transition: 'all 0.3s ease' }}>
               
               {/* Tab 1: Records & Timeline */}
-              {workspaceTab === 'records' && (
+              <div style={{ display: workspaceTab === 'records' ? 'block' : 'none' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 1.5fr', gap: '30px' }} className="records-grid-layout">
                   {/* Left Column: Upload and File History */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -608,10 +608,10 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Tab 2: Health Trends */}
-              {workspaceTab === 'trends' && (
+              <div style={{ display: workspaceTab === 'trends' ? 'block' : 'none' }}>
                 <div className="dashboard-card" style={{ padding: '30px' }}>
                   <h3 className="card-title">
                     <Activity size={18} style={{ color: 'var(--color-secondary)' }} />
@@ -633,10 +633,10 @@ const Dashboard = () => {
                     }}
                   />
                 </div>
-              )}
+              </div>
 
               {/* Tab 3: AI Safety Alerts */}
-              {workspaceTab === 'safety' && (
+              <div style={{ display: workspaceTab === 'safety' ? 'block' : 'none' }}>
                 <div className="dashboard-card" style={{ padding: '30px' }}>
                   <h3 className="card-title">
                     <AlertTriangle size={18} style={{ color: 'var(--color-warning)' }} />
@@ -656,10 +656,10 @@ const Dashboard = () => {
                     }}
                   />
                 </div>
-              )}
+              </div>
 
               {/* Tab 4: Clinical QA Assistant */}
-              {workspaceTab === 'assistant' && (
+              <div style={{ display: workspaceTab === 'assistant' ? 'block' : 'none' }}>
                 <div className="dashboard-card" style={{ padding: '30px' }}>
                   <h3 className="card-title">
                     <Info size={18} style={{ color: 'var(--color-primary)' }} />
@@ -678,11 +678,12 @@ const Dashboard = () => {
                     }}
                   />
                 </div>
-              )}
+              </div>
 
               {/* Tab 5: Local Doctor & Care Navigation */}
-              {workspaceTab === 'navigation' && (
+              <div style={{ display: workspaceTab === 'navigation' ? 'block' : 'none' }}>
                 <CareRecommendation 
+                  key={selectedPatientId}
                   patientId={selectedPatientId}
                   patient={selectedPatient}
                   initialFinding={activeCareFinding}
@@ -691,7 +692,7 @@ const Dashboard = () => {
                   forecast={forecast}
                   onViewDocument={setPreviewDoc}
                 />
-              )}
+              </div>
 
             </div>
           </div>

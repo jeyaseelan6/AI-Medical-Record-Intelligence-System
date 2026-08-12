@@ -49,7 +49,7 @@ export class GooglePlacesAdapter {
 
     const requestBody = {
       includedTypes: includedTypes,
-      maxResultCount: 20,
+      maxResultCount: 12,
       locationRestriction: {
         circle: {
           center: {
