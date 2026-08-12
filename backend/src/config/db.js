@@ -5,21 +5,24 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Connection options optimized for scalability and resilience
+// Determine if running within AWS Lambda / serverless environment
+const isLambda = !!(process.env.AWS_EXECUTION_ENV || process.env.LAMBDA_TASK_ROOT);
+
+// Connection options optimized for serverless scalability and resilience
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
-  // Maximum number of clients in the pool
-  max: 20,
-  // Minimum idle connections to keep alive
-  min: 2,
-  // How long a client is allowed to remain idle before being closed
-  idleTimeoutMillis: 30000,
-  // How long to wait before timing out when connecting a new client
+  // Limit pool size in Lambda (default: 3) to prevent connection exhaustion across concurrent containers
+  max: process.env.DB_POOL_MAX ? parseInt(process.env.DB_POOL_MAX, 10) : (isLambda ? 3 : 15),
+  // Keep 0 or 1 idle connection in serverless to allow clean container shutdown
+  min: isLambda ? 0 : 2,
+  // Client idle timeout before release
+  idleTimeoutMillis: isLambda ? 10000 : 30000,
+  // Connection timeout limit
   connectionTimeoutMillis: 5000,
 };
 
-// Check if we are running against Neon PostgreSQL and enable SSL if so (required by Neon)
-if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon.tech')) {
+// Check if we are running against Neon PostgreSQL or remote cloud DB and enable SSL if required
+if (process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('neon.tech') || process.env.DATABASE_URL.includes('sslmode=require') || process.env.DATABASE_URL.includes('amazonaws.com'))) {
   poolConfig.ssl = {
     rejectUnauthorized: false
   };
@@ -27,7 +30,7 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon.tech')) 
 
 export const pool = new Pool(poolConfig);
 
-// Monitor connection pool events for robust telemetry
+// Monitor connection pool events
 pool.on('connect', () => {
   console.log('[Database] New client successfully connected to the PostgreSQL pool.');
 });
@@ -67,7 +70,6 @@ export const query = async (text, params) => {
  * Transaction helper that automatically checks out a client,
  * runs the provided callback logic with that client, and handles
  * COMMIT/ROLLBACK logic automatically.
- * Useful for maintaining relational integrity when inserting parsed medical entities.
  * 
  * @param {function(pg.PoolClient): Promise<any>} callback - Logic to execute within the transaction
  * @returns {Promise<any>} Result returned from the callback
@@ -88,8 +90,4 @@ export const transaction = async (callback) => {
   }
 };
 
-export default {
-  query,
-  transaction,
-  pool
-};
+export default { pool, query, transaction };

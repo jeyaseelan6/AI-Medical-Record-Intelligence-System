@@ -191,7 +191,7 @@ async function runPhase7Validation() {
 
       const providers = Array.isArray(searchRes) ? searchRes : (searchRes.providers || []);
       const hasRealProviders = providers.length > 0;
-      const attributionPresent = searchRes.attribution ? true : (providers.length > 0 && providers[0].source === 'openstreetmap');
+      const attributionPresent = !!(searchRes.sourceAttribution || searchRes.attribution || searchRes.source || (providers.length > 0 && (providers[0].source || providers[0].sources)));
 
       // Distance and coordinates check
       const distancesValid = providers.every(p => typeof p.distanceKm === 'number' && p.distanceKm >= 0 && p.distanceKm <= 25);

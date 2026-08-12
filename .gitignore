@@ -3,14 +3,16 @@ node_modules/
 jspm_packages/
 web_modules/
 
-# Local env files containing secrets (database URL, API keys, JWT secret)
+# Local env files containing credentials
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-backend/.env
-
+.env.*
+!.env.example
+backend/.env*
+!backend/.env.example
+frontend/.env*
+!frontend/.env.example
+.env.production
+.env.development
 # Temporary uploaded patient records
 backend/uploads/
 uploads/

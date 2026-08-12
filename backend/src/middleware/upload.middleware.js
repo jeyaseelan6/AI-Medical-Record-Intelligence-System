@@ -1,13 +1,19 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
-// Resolve temporary uploads folder inside the workspace
-const uploadDir = path.resolve('uploads');
+// Determine writable temporary upload directory (Lambda only allows writing to /tmp)
+const isServerless = !!(process.env.AWS_EXECUTION_ENV || process.env.LAMBDA_TASK_ROOT || process.env.VERCEL);
+const uploadDir = isServerless ? path.join(os.tmpdir(), 'med-ai-uploads') : path.resolve('uploads');
 
 // Synchronously create upload directory if it does not exist
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('[Upload Middleware] Upload directory creation notice:', e.message);
 }
 
 // Multer disk storage configuration
@@ -23,7 +29,7 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter to restrict uploads to PDF and common images
+// File filter to restrict uploads to PDF and common medical images
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
   

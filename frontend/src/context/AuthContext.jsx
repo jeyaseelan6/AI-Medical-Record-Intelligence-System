@@ -4,7 +4,7 @@ import axios from 'axios';
 const AuthContext = createContext(null);
 
 // Centralized API Base URL configuration
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+export const API_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${API_URL}/api`;
 
 // Create a pre-configured Axios instance for database efficient & authenticated API requests
