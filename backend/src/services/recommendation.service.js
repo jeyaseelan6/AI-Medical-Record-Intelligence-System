@@ -1,4 +1,4 @@
-import { query } from '../db/connection.js';
+import { query } from '../config/db.js';
 import { SpecialtyService } from './specialty.service.js';
 import { LocationService } from './location.service.js';
 import { ProviderSearchService } from './provider-search.service.js';
