@@ -53,6 +53,11 @@ const CareRecommendation = ({
   // Pre-configured Sri Lankan regional quick-select location chips
   const QUICK_LOCATIONS = ['Jaffna', 'Colombo', 'Kandy', 'Galle', 'Negombo', 'Batticaloa'];
 
+  const sanitizeBookingUrl = (url) => {
+    if (!url) return 'https://doc.lk/channel/';
+    return url.replace(/doc990\.lk/g, 'doc.lk').replace(/www\.doc\.lk/g, 'doc.lk');
+  };
+
   // Initialize from initialFinding if passed, or restore previous search from session cache strictly for this patient
   useEffect(() => {
     if (initialFinding) {
@@ -64,6 +69,14 @@ const CareRecommendation = ({
         const cached = sessionStorage.getItem(`medai_care_search_${patientId}`);
         if (cached) {
           const parsed = JSON.parse(cached);
+          if (parsed.searchResult?.providers) {
+            parsed.searchResult.providers = parsed.searchResult.providers.map(p => {
+              if (p.channeling?.bookingUrl) {
+                p.channeling.bookingUrl = sanitizeBookingUrl(p.channeling.bookingUrl);
+              }
+              return p;
+            });
+          }
           setSearchResult(parsed.searchResult || null);
           setTriageResult(parsed.triageResult || null);
           if (parsed.locationQuery) setLocationQuery(parsed.locationQuery);
@@ -985,7 +998,7 @@ const CareRecommendation = ({
 
                                 {prov.channeling?.bookingUrl && (
                                   <a
-                                    href={prov.channeling.bookingUrl}
+                                    href={sanitizeBookingUrl(prov.channeling.bookingUrl)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     style={{
