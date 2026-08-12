@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext.jsx';
 import { 
   Compass, MapPin, Search, Stethoscope, Building2, Phone, ExternalLink, 
   ChevronRight, Shield, Award, Clock, History, AlertCircle, CheckCircle, 
-  Info, Sparkles, Navigation, X, Sliders, RefreshCw
+  Info, Sparkles, Navigation, X, RefreshCw
 } from 'lucide-react';
 
 /**
@@ -15,8 +15,8 @@ import {
  * Core UX Principles:
  * - 100% Real public healthcare providers (Zero synthetic doctors/ratings).
  * - Clear distinction between AI care navigation and clinical diagnosis.
- * - Transparent multi-factor match score breakdown (0-100 pts).
- * - Direct map navigation and phone dialer integration.
+ * - Factual provider information and direct map/phone integration.
+ * - Zero arbitrary numerical recommendation scores.
  * - Patient audit session history.
  */
 const CareRecommendation = ({ 
@@ -44,8 +44,7 @@ const CareRecommendation = ({
   const [searchError, setSearchError] = useState(null);
   const [displayCount, setDisplayCount] = useState(10); // Display Top 10 by default
 
-  // Modal & History States
-  const [selectedScoreBreakdown, setSelectedScoreBreakdown] = useState(null);
+  // History States
   const [showHistory, setShowHistory] = useState(false);
   const [historySessions, setHistorySessions] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -806,7 +805,7 @@ const CareRecommendation = ({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <div>
                       <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--color-text-main)' }}>
-                        Ranked Healthcare Providers ({searchResult.totalCount})
+                        Healthcare Facilities Relevant to Care Need ({searchResult.totalCount})
                       </h3>
                       <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                         Near <strong>{searchResult.location?.displayName || locationQuery}</strong> (Radius: {searchResult.searchRadiusKm} km)
@@ -824,7 +823,7 @@ const CareRecommendation = ({
                     <div className="dashboard-card" style={{ padding: '40px 20px', textAlign: 'center' }}>
                       <Building2 size={36} style={{ color: 'var(--color-text-light)', margin: '0 auto 12px auto' }} />
                       <h4 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-main)' }}>
-                        No Healthcare Providers Found
+                        No Healthcare Facilities Found
                       </h4>
                       <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', margin: '6px 0 0 0' }}>
                         No clinics or hospitals matched this specialty within {searchResult.searchRadiusKm} km. Try expanding the search radius or selecting an adjacent city.
@@ -834,37 +833,21 @@ const CareRecommendation = ({
                     /* Provider Cards List (Top 10 initially, expandable via Show More) */
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {searchResult.providers.slice(0, displayCount).map((prov) => {
-                        const rankScore = prov.ranking?.totalScore || 75;
-                        const matchPct = prov.ranking?.matchScorePercent || Math.round(rankScore);
-                        const isTop = prov.rank === 1;
-
                         return (
                           <div
                             key={prov.id}
                             className="dashboard-card"
                             style={{
                               padding: '18px',
-                              borderLeft: isTop ? '4px solid #10b981' : '1px solid var(--color-border)',
+                              borderLeft: prov.governmentVerification?.isVerified ? '4px solid #10b981' : '1px solid var(--color-border)',
                               position: 'relative',
                               transition: 'var(--transition-fast)'
                             }}
                           >
-                            {/* Card Header */}
+                            {/* Card Header & Main Info */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '8px' }}>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                                  <span style={{
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    padding: '2px 8px',
-                                    borderRadius: '12px',
-                                    backgroundColor: isTop ? '#f0fdf4' : 'var(--color-bg)',
-                                    color: isTop ? '#15803d' : 'var(--color-text-muted)',
-                                    border: isTop ? '1px solid #bbf7d0' : '1px solid var(--color-border)'
-                                  }}>
-                                    Rank #{prov.rank}
-                                  </span>
-
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
                                   <span style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
@@ -910,96 +893,8 @@ const CareRecommendation = ({
                                 </h4>
                               </div>
 
-                              {/* Match Score Badge */}
-                              <div style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                minWidth: '60px',
-                                padding: '6px 10px',
-                                borderRadius: 'var(--radius-sm)',
-                                backgroundColor: isTop ? '#f0fdf4' : 'var(--color-primary-light)',
-                                border: isTop ? '1px solid #bbf7d0' : '1px solid rgba(20,184,166,0.3)'
-                              }}>
-                                <span style={{ fontSize: '16px', fontWeight: 800, color: isTop ? '#15803d' : 'var(--color-primary)', lineHeight: 1 }}>
-                                  {matchPct}%
-                                </span>
-                                <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: '2px' }}>
-                                  Match
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Address & Contact Row */}
-                            <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', display: 'flex', flexDirection: 'column', gap: '5px', margin: '8px 0 10px 0' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <MapPin size={14} style={{ flexShrink: 0, color: 'var(--color-text-light)' }} />
-                                <span>{prov.address || 'Address not listed in directory'}</span>
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginTop: '2px' }}>
-                                {prov.phone ? (
-                                  <a 
-                                    href={`tel:${prov.phone}`}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 600 }}
-                                  >
-                                    <Phone size={13} />
-                                    <span>{prov.phone}</span>
-                                  </a>
-                                ) : (
-                                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-light)' }}>
-                                    Phone: Not listed
-                                  </span>
-                                )}
-
-                                {prov.rating != null ? (
-                                  <span style={{ fontSize: '11.5px', color: '#b45309', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#fffbeb', border: '1px solid #fef3c7', padding: '1px 7px', borderRadius: '4px' }}>
-                                    <span>★ {Number(prov.rating).toFixed(1)}</span>
-                                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>({prov.reviewCount || 0} Google ratings)</span>
-                                  </span>
-                                ) : (
-                                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-light)' }}>
-                                    Rating: Not listed in public directory
-                                  </span>
-                                )}
-
-                                {prov.openingHours != null && (
-                                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-main)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                    <Clock size={12} style={{ color: 'var(--color-primary)' }} />
-                                    <span>{typeof prov.openingHours === 'boolean' ? (prov.openingHours ? 'Open Now' : 'Closed') : prov.openingHours}</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Match Reasons & Primary Rationale */}
-                            {prov.ranking?.primaryExplanation && (
-                              <div style={{ backgroundColor: 'var(--color-bg)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '12px', color: 'var(--color-text-main)', marginBottom: '10px' }}>
-                                <strong>Match Reason:</strong> {prov.ranking.primaryExplanation}
-                              </div>
-                            )}
-
-                            {/* Card Footer: Action Buttons & Breakdown trigger */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
-                              <button
-                                onClick={() => setSelectedScoreBreakdown(prov)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: 'var(--color-primary)',
-                                  fontSize: '12px',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <Sliders size={13} />
-                                <span>Score Breakdown</span>
-                              </button>
-
-                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {/* Action Buttons in Header */}
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                                 {prov.phone && (
                                   <a
                                     href={`tel:${prov.phone}`}
@@ -1048,6 +943,55 @@ const CareRecommendation = ({
                                 )}
                               </div>
                             </div>
+
+                            {/* Address & Contact Row */}
+                            <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', display: 'flex', flexDirection: 'column', gap: '5px', margin: '8px 0 10px 0' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <MapPin size={14} style={{ flexShrink: 0, color: 'var(--color-text-light)' }} />
+                                <span>{prov.address || 'Address not listed in directory'}</span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginTop: '2px' }}>
+                                {prov.phone ? (
+                                  <a 
+                                    href={`tel:${prov.phone}`}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 600 }}
+                                  >
+                                    <Phone size={13} />
+                                    <span>{prov.phone}</span>
+                                  </a>
+                                ) : (
+                                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-light)' }}>
+                                    Phone: Not listed
+                                  </span>
+                                )}
+
+                                {prov.rating != null ? (
+                                  <span style={{ fontSize: '11.5px', color: '#b45309', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#fffbeb', border: '1px solid #fef3c7', padding: '1px 7px', borderRadius: '4px' }}>
+                                    <span>★ {Number(prov.rating).toFixed(1)}</span>
+                                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>({prov.reviewCount || 0} Google ratings)</span>
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-light)' }}>
+                                    Rating: Not listed in public directory
+                                  </span>
+                                )}
+
+                                {prov.openingHours != null && (
+                                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-main)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <Clock size={12} style={{ color: 'var(--color-primary)' }} />
+                                    <span>{typeof prov.openingHours === 'boolean' ? (prov.openingHours ? 'Open Now' : 'Closed') : prov.openingHours}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Factual Clinical Relevance Note */}
+                            {prov.matchReason && (
+                              <div style={{ backgroundColor: 'var(--color-bg)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '12px', color: 'var(--color-text-main)', marginTop: '6px' }}>
+                                <strong>Relevance:</strong> {prov.matchReason}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -1111,134 +1055,6 @@ const CareRecommendation = ({
 
           </div>
         </>
-      )}
-
-      {/* Score Breakdown Modal */}
-      {selectedScoreBreakdown && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div className="dashboard-card" style={{ maxWidth: '520px', width: '100%', padding: '24px', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase' }}>
-                  Transparent Scoring Formula
-                </span>
-                <h4 style={{ fontSize: '17px', fontWeight: 700, margin: '2px 0 0 0', color: 'var(--color-text-main)' }}>
-                  {selectedScoreBreakdown.name}
-                </h4>
-              </div>
-              <button
-                onClick={() => setSelectedScoreBreakdown(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', marginBottom: '16px' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px' }}>Overall Recommendation Match:</span>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-primary)' }}>
-                {selectedScoreBreakdown.ranking?.totalScore || 80}/100 pts
-              </span>
-            </div>
-
-            {/* 5-Dimension Score Progress Bars */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '18px' }}>
-              {/* 1. Specialty Relevance (40 max) */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>1. Clinical Specialty Relevance (Max 40 pts)</span>
-                  <strong>{selectedScoreBreakdown.ranking?.scoreBreakdown?.specialtyScore || 30} pts</strong>
-                </div>
-                <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${((selectedScoreBreakdown.ranking?.scoreBreakdown?.specialtyScore || 30) / 40) * 100}%`, backgroundColor: '#8b5cf6' }} />
-                </div>
-              </div>
-
-              {/* 2. Proximity / Distance (30 max) */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>2. Proximity / Distance Decay (Max 30 pts)</span>
-                  <strong>{selectedScoreBreakdown.ranking?.scoreBreakdown?.distanceScore || 20} pts</strong>
-                </div>
-                <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${((selectedScoreBreakdown.ranking?.scoreBreakdown?.distanceScore || 20) / 30) * 100}%`, backgroundColor: 'var(--color-primary)' }} />
-                </div>
-              </div>
-
-              {/* 3. Reputation / Neutral Baseline (15 max) */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>3. Directory Reputation Signal (Max 15 pts)</span>
-                  <strong>{selectedScoreBreakdown.ranking?.scoreBreakdown?.reputationScore || 8} pts</strong>
-                </div>
-                <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${((selectedScoreBreakdown.ranking?.scoreBreakdown?.reputationScore || 8) / 15) * 100}%`, backgroundColor: '#f59e0b' }} />
-                </div>
-              </div>
-
-              {/* 4. Data Completeness (10 max) */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>4. Verified Metadata & Contact (Max 10 pts)</span>
-                  <strong>{selectedScoreBreakdown.ranking?.scoreBreakdown?.completenessScore || 7.5} pts</strong>
-                </div>
-                <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${((selectedScoreBreakdown.ranking?.scoreBreakdown?.completenessScore || 7.5) / 10) * 100}%`, backgroundColor: '#0ea5e9' }} />
-                </div>
-              </div>
-
-              {/* 5. Availability Alignment (5 max) */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>5. Facility Capability Alignment (Max 5 pts)</span>
-                  <strong>{selectedScoreBreakdown.ranking?.scoreBreakdown?.availabilityScore || 4.5} pts</strong>
-                </div>
-                <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${((selectedScoreBreakdown.ranking?.scoreBreakdown?.availabilityScore || 4.5) / 5) * 100}%`, backgroundColor: '#10b981' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Explainable match bullets */}
-            {selectedScoreBreakdown.ranking?.matchReasons && selectedScoreBreakdown.ranking.matchReasons.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px' }}>
-                  Audit Details & Match Reasons:
-                </span>
-                <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: 'var(--color-text-main)', lineHeight: 1.5 }}>
-                  {selectedScoreBreakdown.ranking.matchReasons.map((reason, idx) => (
-                    <li key={idx}>{reason}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <button
-              onClick={() => setSelectedScoreBreakdown(null)}
-              style={{
-                width: '100%',
-                padding: '8px 16px',
-                backgroundColor: 'var(--color-bg)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
       )}
 
     </div>

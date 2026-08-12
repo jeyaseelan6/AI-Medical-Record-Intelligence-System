@@ -170,18 +170,16 @@ async function runUnifiedProviderTests() {
     `Missing fields strictly preserved as null. No artificial phone or 5-star rating injected.`
   );
 
-  // --------------------------------------------------------------------------
-  // TEST 7: Multi-Factor Ranking Evaluation of Unified Provider
-  // --------------------------------------------------------------------------
-  const rankedGov = await ProviderRankingService.rankProviders(mergedGovProvider, { recommendedSpecialty: 'Cardiology', careType: 'specialist', alternativeSpecialties: [] }, { radiusKm: 15, availabilityPreference: 'today', skipAiSemantic: true });
+  // -------------------------------------------------------------
+  // TEST 7: Factual Clinical Relevance & Proximity Ordering
+  // -------------------------------------------------------------
+  const rankedGov = await ProviderRankingService.rankProviders(mergedGovProvider, { recommendedSpecialty: 'Cardiology', careType: 'specialist', alternativeSpecialties: [] }, { radiusKm: 15, availabilityPreference: 'today' });
   const topRank = rankedGov[0];
-  const b = topRank.ranking.scoreBreakdown;
-  const calculatedSum = parseFloat((b.specialtyScore + b.distanceScore + b.reputationScore + b.completenessScore + b.availabilityScore).toFixed(1));
 
   assert(
-    'TEST 7 — Multi-Factor Score Consistency on Enriched Card',
-    Math.abs(topRank.ranking.totalScore - calculatedSum) < 0.2,
-    `Total Score: ${topRank.ranking.totalScore}/100 (Completeness: ${b.completenessScore}/10, Reputation: ${b.reputationScore}/15)`
+    'TEST 7 — Factual Clinical Relevance Tier & Explanation',
+    topRank && topRank.relevanceTier === 2 && typeof topRank.matchReason === 'string' && topRank.ranking === undefined,
+    `Top provider correctly assigned relevanceTier: ${topRank?.relevanceTier} ("${topRank?.matchReason}") with zero arbitrary score points`
   );
 
   // --------------------------------------------------------------------------
