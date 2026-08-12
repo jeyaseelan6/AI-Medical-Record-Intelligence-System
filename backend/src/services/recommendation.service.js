@@ -240,6 +240,28 @@ export class RecommendationService {
       sourceAttribution: searchRes.sourceAttribution
     };
   }
+
+  /**
+   * Retrieves past recommendation session history for a patient.
+   * 
+   * @param {number} patientId
+   * @param {number} userId
+   * @returns {Promise<Array>}
+   */
+  static async getRecommendationHistory(patientId, userId) {
+    const sessionsQuery = await query(
+      `SELECT id, user_id, patient_id, insight_id, issue_type, risk_level, clinical_summary,
+              recommended_care_type, recommended_specialty, alternative_specialties,
+              specialty_reason, confidence_score, location_query, normalized_location,
+              latitude, longitude, availability_preference, search_radius_km,
+              total_providers_found, providers_result, status, created_at
+       FROM recommendation_sessions 
+       WHERE patient_id = $1 AND user_id = $2
+       ORDER BY created_at DESC LIMIT 50`,
+      [patientId, userId]
+    );
+    return sessionsQuery.rows;
+  }
 }
 
 export default RecommendationService;
