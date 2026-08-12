@@ -12,12 +12,12 @@
  */
 
 // Known certified channeling hospitals and private hospital networks in Sri Lanka
-// Doc990's official verified channeling portal is https://www.doc.lk/channel/ (powered by Dialog Axiata / Digital Health)
+// Doc990's official verified portal is https://doc.lk/channel/ (powered by Dialog Axiata / Digital Health)
 const CERTIFIED_CHANNELING_FACILITIES = [
-  { matchWords: ['jaffna teaching', 'teaching hospital jaffna', 'northern central', 'yaarl hospital', 'noolaham'], platform: 'Doc990 / Hospital Channeling Desk', hotline: '0117 990 990', url: 'https://www.doc.lk/channel/' },
-  { matchWords: ['national hospital', 'nhsl', 'asiri', 'nawaloka', 'durdans', 'lanka hospital', 'hemas', 'kings hospital', 'ninewells'], platform: 'Doc990 / eChannelling', hotline: '0117 990 990', url: 'https://www.doc.lk/channel/' },
-  { matchWords: ['kandy general', 'national hospital kandy', 'suwasewana', 'kandy private'], platform: 'Doc990 / Hospital Channeling', hotline: '0117 990 990', url: 'https://www.doc.lk/channel/' },
-  { matchWords: ['negombo general', 'district general hospital negombo', 'ave maria', 'negombo hospital', 'st. joseph'], platform: 'Doc990 / Hospital Channeling Desk', hotline: '0117 990 990', url: 'https://www.doc.lk/channel/' }
+  { matchWords: ['jaffna teaching', 'teaching hospital jaffna', 'northern central', 'yaarl hospital', 'noolaham'], platform: 'Doc990 / Hospital Channeling Desk', hotline: '0117 990 990', url: 'https://doc.lk/channel/' },
+  { matchWords: ['national hospital', 'nhsl', 'asiri', 'nawaloka', 'durdans', 'lanka hospital', 'hemas', 'kings hospital', 'ninewells'], platform: 'Doc990 / eChannelling', hotline: '0117 990 990', url: 'https://doc.lk/channel/' },
+  { matchWords: ['kandy general', 'national hospital kandy', 'suwasewana', 'kandy private'], platform: 'Doc990 / Hospital Channeling', hotline: '0117 990 990', url: 'https://doc.lk/channel/' },
+  { matchWords: ['negombo general', 'district general hospital negombo', 'ave maria', 'negombo hospital', 'st. joseph'], platform: 'Doc990 / Hospital Channeling Desk', hotline: '0117 990 990', url: 'https://doc.lk/channel/' }
 ];
 
 export class ChannelingAdapter {
@@ -64,7 +64,7 @@ export class ChannelingAdapter {
       return {
         available: true,
         platform: provider.governmentVerification.channelingPlatform || 'Hospital OPD Channeling Desk',
-        bookingUrl: 'https://www.doc.lk/channel/',
+        bookingUrl: 'https://doc.lk/channel/',
         hotline: '0117 990 990',
         targetSpecialty: targetSpecialty || null,
         notes: 'Consultant doctor clinics available through official hospital channeling.'
