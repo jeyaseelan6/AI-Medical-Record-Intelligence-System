@@ -1077,13 +1077,9 @@ const CareRecommendation = ({
                   <h4 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
                     Find Verified Healthcare Providers for {patient?.patient_name}
                   </h4>
-                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', maxWidth: '460px', margin: '8px auto 20px auto' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', maxWidth: '460px', margin: '8px auto 0 auto' }}>
                     Select an active medical alert on the left, verify the AI-recommended medical specialty, choose your preferred locality, and click <strong>Find Matching Providers</strong>.
                   </p>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--color-bg)', padding: '8px 16px', borderRadius: '20px', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                    <Shield size={14} style={{ color: 'var(--color-primary)' }} />
-                    <span>Real-world public data from OpenStreetMap • Zero fabricated doctors</span>
-                  </div>
                 </div>
               )}
             </div>
