@@ -807,6 +807,24 @@ const CareRecommendation = ({
                                     <span style={{ textTransform: 'capitalize' }}>{prov.facilityType || 'Healthcare Facility'}</span>
                                   </span>
 
+                                  {prov.governmentVerification?.isVerified && (
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      color: '#047857',
+                                      backgroundColor: '#ecfdf5',
+                                      border: '1px solid #a7f3d0',
+                                      padding: '2px 8px',
+                                      borderRadius: '12px'
+                                    }}>
+                                      <CheckCircle size={11} />
+                                      <span>Government Verified · {prov.governmentVerification.facilityCategory || 'MOH Sri Lanka'}</span>
+                                    </span>
+                                  )}
+
                                   {prov.distanceKm != null && (
                                     <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
                                       • {prov.distanceKm} km away
@@ -840,7 +858,7 @@ const CareRecommendation = ({
                             </div>
 
                             {/* Address & Contact Row */}
-                            <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', display: 'flex', flexDirection: 'column', gap: '4px', margin: '8px 0 12px 0' }}>
+                            <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', display: 'flex', flexDirection: 'column', gap: '5px', margin: '8px 0 10px 0' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <MapPin size={14} style={{ flexShrink: 0, color: 'var(--color-text-light)' }} />
                                 <span>{prov.address || 'Address not listed in directory'}</span>
@@ -862,13 +880,20 @@ const CareRecommendation = ({
                                 )}
 
                                 {prov.rating != null ? (
-                                  <span style={{ fontSize: '11.5px', color: '#b45309', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                    <span>★ {prov.rating}</span>
-                                    <span style={{ color: 'var(--color-text-light)', fontWeight: 400 }}>({prov.reviewCount || 0} reviews)</span>
+                                  <span style={{ fontSize: '11.5px', color: '#b45309', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#fffbeb', border: '1px solid #fef3c7', padding: '1px 7px', borderRadius: '4px' }}>
+                                    <span>★ {Number(prov.rating).toFixed(1)}</span>
+                                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>({prov.reviewCount || 0} Google ratings)</span>
                                   </span>
                                 ) : (
                                   <span style={{ fontSize: '11.5px', color: 'var(--color-text-light)' }}>
                                     Rating: Not listed in public directory
+                                  </span>
+                                )}
+
+                                {prov.openingHours != null && (
+                                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-main)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <Clock size={12} style={{ color: 'var(--color-primary)' }} />
+                                    <span>{typeof prov.openingHours === 'boolean' ? (prov.openingHours ? 'Open Now' : 'Closed') : prov.openingHours}</span>
                                   </span>
                                 )}
                               </div>
@@ -876,8 +901,65 @@ const CareRecommendation = ({
 
                             {/* Match Reasons & Primary Rationale */}
                             {prov.ranking?.primaryExplanation && (
-                              <div style={{ backgroundColor: 'var(--color-bg)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '12px', color: 'var(--color-text-main)', marginBottom: '12px' }}>
+                              <div style={{ backgroundColor: 'var(--color-bg)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '12px', color: 'var(--color-text-main)', marginBottom: '10px' }}>
                                 <strong>Match Reason:</strong> {prov.ranking.primaryExplanation}
+                              </div>
+                            )}
+
+                            {/* Channeling & Available Specialists Section */}
+                            {(prov.channeling?.available || (prov.doctors && prov.doctors.length > 0)) && (
+                              <div style={{
+                                margin: '8px 0 12px 0',
+                                padding: '10px 14px',
+                                backgroundColor: 'rgba(13, 148, 136, 0.04)',
+                                border: '1px solid rgba(13, 148, 136, 0.15)',
+                                borderRadius: 'var(--radius-sm)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: '10px'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ padding: '5px', backgroundColor: 'rgba(13, 148, 136, 0.1)', borderRadius: '6px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center' }}>
+                                    <Stethoscope size={15} />
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--color-text-main)' }}>
+                                      {prov.doctors?.[0]?.name || `Consultant ${triageResult?.recommendedSpecialty || 'Specialist'}`}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
+                                      <span>{prov.channeling?.platform || 'Doc990 / Hospital Channeling'}</span>
+                                      {prov.channeling?.hotline && <span>• Hotline: {prov.channeling.hotline}</span>}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {prov.channeling?.bookingUrl && (
+                                  <a
+                                    href={prov.channeling.bookingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '5px 12px',
+                                      backgroundColor: 'var(--color-primary)',
+                                      color: 'white',
+                                      fontSize: '11.5px',
+                                      fontWeight: 700,
+                                      borderRadius: 'var(--radius-sm)',
+                                      textDecoration: 'none',
+                                      boxShadow: 'var(--shadow-sm)',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    className="btn-primary"
+                                  >
+                                    <span>Channel Doctor</span>
+                                    <ExternalLink size={11} />
+                                  </a>
+                                )}
                               </div>
                             )}
 
@@ -901,7 +983,29 @@ const CareRecommendation = ({
                                 <span>Score Breakdown</span>
                               </button>
 
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                {prov.phone && (
+                                  <a
+                                    href={`tel:${prov.phone}`}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '6px 12px',
+                                      fontSize: '12px',
+                                      fontWeight: 600,
+                                      backgroundColor: 'var(--color-bg)',
+                                      color: 'var(--color-primary)',
+                                      border: '1px solid var(--color-border)',
+                                      borderRadius: 'var(--radius-sm)',
+                                      textDecoration: 'none'
+                                    }}
+                                  >
+                                    <Phone size={12} />
+                                    <span>Call</span>
+                                  </a>
+                                )}
+
                                 {prov.mapUrl && (
                                   <a
                                     href={prov.mapUrl}
@@ -914,43 +1018,20 @@ const CareRecommendation = ({
                                       padding: '6px 12px',
                                       fontSize: '12px',
                                       fontWeight: 600,
-                                      backgroundColor: 'var(--color-bg)',
-                                      color: 'var(--color-text-main)',
-                                      border: '1px solid var(--color-border)',
-                                      borderRadius: 'var(--radius-sm)',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    <ExternalLink size={12} />
-                                    <span>Open Map</span>
-                                  </a>
-                                )}
-
-                                {prov.latitude && prov.longitude && (
-                                  <a
-                                    href={`https://www.google.com/maps/dir/?api=1&destination=${prov.latitude},${prov.longitude}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      padding: '6px 12px',
-                                      fontSize: '12px',
-                                      fontWeight: 600,
                                       backgroundColor: 'var(--color-primary)',
                                       color: 'white',
                                       borderRadius: 'var(--radius-sm)',
-                                      textDecoration: 'none'
+                                      textDecoration: 'none',
+                                      boxShadow: 'var(--shadow-sm)'
                                     }}
+                                    className="btn-primary"
                                   >
                                     <Navigation size={12} />
-                                    <span>Get Directions</span>
+                                    <span>Directions</span>
                                   </a>
                                 )}
                               </div>
                             </div>
-
                           </div>
                         );
                       })}

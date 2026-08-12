@@ -1,6 +1,7 @@
 import { OsmProviderAdapter } from './adapters/osm-provider.adapter.js';
 import { GooglePlacesAdapter } from './adapters/google-places.adapter.js';
 import { LocationService } from './location.service.js';
+import { ProviderMerger } from '../utils/provider-merger.js';
 
 // In-memory cache for provider search queries (Key -> { data, expiresAt })
 const providerCache = new Map();
@@ -10,8 +11,9 @@ const MAX_CACHE_SIZE = 300;
 /**
  * ProviderSearchService
  * 
- * Core provider discovery layer that queries real public healthcare directories
- * through pluggable adapters (OpenStreetMap / Google Places).
+ * Core provider discovery layer that aggregates real public healthcare directories
+ * (OpenStreetMap, Google Places, Sri Lanka Ministry of Health MFL, Doc990)
+ * into a single unified, enriched provider collection.
  * 
  * Privacy & Security Guarantees:
  * - Never sends patient identifiers, clinical summaries, or medical files to external APIs.
@@ -22,21 +24,9 @@ const MAX_CACHE_SIZE = 300;
 export class ProviderSearchService {
 
   /**
-   * Selects the appropriate active provider adapter based on system configuration.
-   * Defaults to OpenStreetMap (free, open, global) and automatically upgrades to
-   * Google Places if GOOGLE_PLACES_API_KEY is configured.
-   * 
-   * @returns {Class} Adapter class implementing searchProviders
-   */
-  static getActiveAdapter() {
-    if (GooglePlacesAdapter.isConfigured()) {
-      return GooglePlacesAdapter;
-    }
-    return OsmProviderAdapter;
-  }
-
-  /**
-   * Searches for real healthcare providers near the specified geographic coordinates.
+   * Searches for real healthcare providers near the specified geographic coordinates,
+   * aggregating data across OpenStreetMap, Google Places (if configured), Ministry of Health,
+   * and legitimate doctor channeling platforms.
    * 
    * @param {Object} params
    * @param {number} params.latitude - Search origin latitude
@@ -62,8 +52,8 @@ export class ProviderSearchService {
     const lonNum = parseFloat(longitude);
     const radNum = Math.max(1, Math.min(100, parseFloat(radiusKm) || 25));
 
-    // Cache key incorporates location grid (~1km granularity) and care type
-    const cacheKey = `${latNum.toFixed(2)}_${lonNum.toFixed(2)}_${radNum}_${careType || 'all'}`;
+    // Cache key incorporates location grid (~1km granularity), specialty, and care type
+    const cacheKey = `${latNum.toFixed(2)}_${lonNum.toFixed(2)}_${radNum}_${careType || 'all'}_${specialty || 'none'}`;
 
     // 1. Check in-memory cache
     if (providerCache.has(cacheKey)) {
@@ -77,12 +67,11 @@ export class ProviderSearchService {
       providerCache.delete(cacheKey);
     }
 
-    // 2. Query active adapter
-    const adapter = this.getActiveAdapter();
-    console.log(`[ProviderSearchService] Executing search via ${adapter.sourceName} at (${latNum}, ${lonNum}) radius: ${radNum}km, careType: ${careType || 'all'}...`);
+    console.log(`[ProviderSearchService] Discovering providers at (${latNum}, ${lonNum}) radius: ${radNum}km, careType: ${careType || 'all'}, specialty: ${specialty || 'none'}...`);
 
     try {
-      const result = await adapter.searchProviders({
+      // 2. Discover baseline physical facilities from OpenStreetMap
+      const osmPromise = OsmProviderAdapter.searchProviders({
         latitude: latNum,
         longitude: lonNum,
         radiusKm: radNum,
@@ -91,22 +80,53 @@ export class ProviderSearchService {
         timeoutMs
       });
 
-      if (!result.success) {
-        return result;
+      // 3. Concurrently discover Google Places providers if API key is configured
+      let googlePromise = Promise.resolve({ success: false, providers: [] });
+      if (GooglePlacesAdapter.isConfigured()) {
+        googlePromise = GooglePlacesAdapter.searchProviders({
+          latitude: latNum,
+          longitude: lonNum,
+          radiusKm: radNum,
+          specialty,
+          careType,
+          timeoutMs
+        }).catch(err => {
+          console.warn('[ProviderSearchService] Google Places search error:', err.message);
+          return { success: false, providers: [] };
+        });
       }
+
+      const [osmResult, googleResult] = await Promise.all([osmPromise, googlePromise]);
+
+      const baseOsmProviders = (osmResult && osmResult.success && Array.isArray(osmResult.providers)) 
+        ? osmResult.providers 
+        : [];
+      
+      const googleProviders = (googleResult && googleResult.success && Array.isArray(googleResult.providers)) 
+        ? googleResult.providers 
+        : [];
+
+      // 4. Merge and enrich providers across all sources into ONE unified list
+      const unifiedProviders = ProviderMerger.mergeAndEnrichProviders(baseOsmProviders, googleProviders, {
+        targetSpecialty: specialty
+      });
+
+      console.log(`[ProviderSearchService] Unified merger produced ${unifiedProviders.length} enriched provider cards.`);
 
       const responsePayload = {
         success: true,
-        count: result.providers ? result.providers.length : 0,
-        providers: result.providers || [],
-        source: result.source || adapter.sourceName,
-        sourceAttribution: result.sourceAttribution || 'Public Healthcare Directory',
+        count: unifiedProviders.length,
+        providers: unifiedProviders,
+        source: googleProviders.length > 0 ? 'multi_source_verified' : 'openstreetmap',
+        sourceAttribution: googleProviders.length > 0
+          ? '© OpenStreetMap contributors, Google Places, Sri Lanka Ministry of Health'
+          : '© OpenStreetMap contributors',
         searchCoordinates: { latitude: latNum, longitude: lonNum },
         searchRadiusKm: radNum,
         cached: false
       };
 
-      // 3. Cache successful results
+      // 5. Cache successful results
       if (providerCache.size >= MAX_CACHE_SIZE) {
         const oldestKey = providerCache.keys().next().value;
         providerCache.delete(oldestKey);
@@ -138,46 +158,54 @@ export class ProviderSearchService {
    * @param {Object} options - Search options (radiusKm, specialty, careType)
    * @returns {Promise<Object>} Combined location metadata and provider search results
    */
-  static async searchByLocationQuery(locationQuery, options = {}) {
-    // 1. Geocode location query
-    const geocodeRes = await LocationService.geocodeLocation(locationQuery);
-    if (!geocodeRes.success) {
+  static async searchProvidersByLocation(locationQuery, options = {}) {
+    if (!locationQuery || typeof locationQuery !== 'string' || !locationQuery.trim()) {
       return {
         success: false,
-        error: geocodeRes.error,
-        message: geocodeRes.message,
-        location: null,
-        count: 0,
-        providers: []
+        error: 'LOCATION_REQUIRED',
+        message: 'A valid location query string is required.'
       };
     }
 
-    // 2. Execute provider search using geocoded coordinates
-    const searchRes = await this.searchProviders({
-      latitude: geocodeRes.latitude,
-      longitude: geocodeRes.longitude,
+    const geoResult = await LocationService.geocodeLocation(locationQuery);
+    if (!geoResult.success) {
+      return {
+        success: false,
+        error: geoResult.error,
+        message: geoResult.message
+      };
+    }
+
+    const searchResult = await this.searchProviders({
+      latitude: geoResult.latitude,
+      longitude: geoResult.longitude,
       radiusKm: options.radiusKm || 25,
       specialty: options.specialty || null,
       careType: options.careType || null,
       timeoutMs: options.timeoutMs || 10000
     });
 
+    if (!searchResult.success) {
+      return searchResult;
+    }
+
     return {
-      ...searchRes,
+      success: true,
       location: {
         query: locationQuery,
-        displayName: geocodeRes.displayName,
-        latitude: geocodeRes.latitude,
-        longitude: geocodeRes.longitude,
-        country: geocodeRes.country,
-        region: geocodeRes.region,
-        city: geocodeRes.city
-      }
+        displayName: geoResult.displayName,
+        latitude: geoResult.latitude,
+        longitude: geoResult.longitude,
+        country: geoResult.country,
+        region: geoResult.region,
+        city: geoResult.city
+      },
+      ...searchResult
     };
   }
 
   /**
-   * Clears the in-memory provider cache.
+   * Clears the in-memory provider search cache.
    */
   static clearCache() {
     providerCache.clear();
