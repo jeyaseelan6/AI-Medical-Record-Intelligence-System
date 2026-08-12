@@ -21,7 +21,7 @@ const Login = () => {
     try {
       const res = await loginUser(email, password);
       if (res.success) {
-        navigate('/');
+        navigate('/app');
       } else {
         setError(res.message);
       }
