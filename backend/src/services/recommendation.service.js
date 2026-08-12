@@ -1,4 +1,4 @@
-import { query } from '../config/db.js';
+import { query } from '../db/connection.js';
 import { SpecialtyService } from './specialty.service.js';
 import { LocationService } from './location.service.js';
 import { ProviderSearchService } from './provider-search.service.js';
@@ -7,64 +7,65 @@ import { ProviderRankingService } from './provider-ranking.service.js';
 /**
  * RecommendationService
  * 
- * Master coordinator for Round 2 Care Navigation.
- * Orchestrates the full pipeline:
- * Finding Context -> AI Specialty Triage -> Location Geocoding -> Real Provider Search -> Multi-Factor Ranking -> Session Persistence
+ * Orchestrates the end-to-end Care Intelligence & Provider Navigation flow:
+ * 1. Resolves clinical context from patient history / medical alerts.
+ * 2. Invokes AI Specialty Triage Reasoner (with strict Zero-Fabrication / Honest Failure boundaries).
+ * 3. Geocodes search location via OpenStreetMap Nominatim.
+ * 4. Discovers real public healthcare facilities via OpenStreetMap & Google Places.
+ * 5. Runs deterministic multi-factor provider scoring and ranking.
+ * 6. Persists audit session records in PostgreSQL.
  */
 export class RecommendationService {
 
   /**
-   * Generates clinical care navigation context and AI specialty determination for a given insight/finding.
+   * Prepares and resolves the clinical finding context for specialty triage.
    * 
    * @param {Object} params
    * @param {number} params.userId - Authenticated user ID
-   * @param {number} params.patientId - Patient ID
-   * @param {number} params.insightId - Optional AI insight ID from ai_insights
-   * @param {Object} params.findingContext - Optional direct finding context (for forecast or chat risk flags)
-   * @returns {Promise<Object>} Recommendation context ready for UI location input
+   * @param {number} params.patientId - Target patient ID
+   * @param {number} [params.insightId] - Optional specific ai_insights ID
+   * @param {Object} [params.findingContext] - Optional custom finding context
+   * @returns {Promise<Object>} Assembled context and AI specialty triage result
    */
   static async prepareRecommendationContext({ userId, patientId, insightId = null, findingContext = null }) {
-    // 1. Verify patient ownership
-    const patientCheck = await query(
-      'SELECT id, patient_name, age, gender, user_id FROM patients WHERE id = $1',
-      [patientId]
+    // 1. Verify patient ownership and retrieve basic demographics
+    const patientQuery = await query(
+      `SELECT id, patient_name, age, gender, user_id FROM patients WHERE id = $1 AND user_id = $2`,
+      [patientId, userId]
     );
 
-    if (patientCheck.rows.length === 0) {
-      return { success: false, error: 'PATIENT_NOT_FOUND', message: 'Patient not found.' };
-    }
-    const patient = patientCheck.rows[0];
-    if (patient.user_id !== userId) {
-      return { success: false, error: 'UNAUTHORIZED', message: 'Unauthorized access to patient records.' };
+    if (patientQuery.rows.length === 0) {
+      return {
+        success: false,
+        error: 'PATIENT_NOT_FOUND',
+        message: 'Patient record not found or access denied.'
+      };
     }
 
+    const patient = patientQuery.rows[0];
     let assembledContext = findingContext;
 
-    // 2. If insightId is supplied, assemble finding context from database
-    if (insightId) {
-      const insightRes = await query(
-        'SELECT * FROM ai_insights WHERE id = $1 AND patient_id = $2',
+    // 2. If an insightId is provided, retrieve the alert and recent medical events
+    if (insightId && !assembledContext) {
+      const insightQuery = await query(
+        `SELECT * FROM ai_insights WHERE id = $1 AND patient_id = $2`,
         [insightId, patientId]
       );
 
-      if (insightRes.rows.length > 0) {
-        const insight = insightRes.rows[0];
-        
+      if (insightQuery.rows.length > 0) {
+        const insight = insightQuery.rows[0];
+
         // Fetch recent medical events to enrich context
-        const eventsRes = await query(
-          `SELECT me.*, 
-           COALESCE(json_agg(DISTINCT med.*) FILTER (WHERE med.id IS NOT NULL), '[]') as medications,
-           COALESCE(json_agg(DISTINCT lr.*) FILTER (WHERE lr.id IS NOT NULL), '[]') as lab_results
-           FROM medical_events me
-           LEFT JOIN medications med ON med.medical_event_id = me.id
-           LEFT JOIN lab_results lr ON lr.medical_event_id = me.id
-           WHERE me.patient_id = $1
-           GROUP BY me.id
-           ORDER BY me.event_date DESC LIMIT 5`,
+        const eventsQuery = await query(
+          `SELECT event_date, event_type, diagnosis, symptoms, medications, lab_results 
+           FROM medical_events 
+           WHERE patient_id = $1 
+           ORDER BY event_date DESC 
+           LIMIT 5`,
           [patientId]
         );
 
-        assembledContext = SpecialtyService.buildContextFromInsight(insight, patient, eventsRes.rows);
+        assembledContext = SpecialtyService.buildContextFromInsight(insight, patient, eventsQuery.rows);
       }
     }
 
@@ -72,13 +73,13 @@ export class RecommendationService {
       assembledContext = {
         issueType: 'general_medical_review',
         riskLevel: 'moderate',
-        clinicalSummary: 'General medical history review recommended.',
+        clinicalSummary: 'General medical history review.',
         patientAge: patient.age,
         patientGender: patient.gender
       };
     }
 
-    // 3. Invoke AI Specialty & Care Reasoner
+    // 3. Invoke AI Specialty & Care Reasoner (Returns honest AI_UNAVAILABLE on failure; never synthetic fallback)
     const specialtyReasoning = await SpecialtyService.determineSpecialty(assembledContext);
 
     return {
@@ -146,13 +147,13 @@ export class RecommendationService {
       };
     }
 
-    // 3. Search Real Providers
+    // 3. Search Real Providers (uses recommended specialty if AI succeeded; otherwise searches general care)
     const searchRes = await ProviderSearchService.searchProviders({
       latitude: geocodeRes.latitude,
       longitude: geocodeRes.longitude,
       radiusKm: radiusKm || 25,
-      specialty: specialtyResult.recommendedSpecialty,
-      careType: specialtyResult.careType
+      specialty: specialtyResult?.recommendedSpecialty || null,
+      careType: specialtyResult?.careType || 'all'
     });
 
     if (!searchRes.success) {
@@ -168,7 +169,7 @@ export class RecommendationService {
     // 4. Multi-Factor Deterministic & AI-Native Ranking
     const rankedProviders = await ProviderRankingService.rankProviders(
       searchRes.providers,
-      specialtyResult,
+      specialtyResult || {},
       {
         radiusKm: radiusKm || 25,
         availabilityPreference: availability
@@ -195,11 +196,11 @@ export class RecommendationService {
           contextRes.findingContext.issueType || 'clinical_concern',
           contextRes.findingContext.riskLevel || 'moderate',
           contextRes.findingContext.clinicalSummary || '',
-          specialtyResult.careType,
-          specialtyResult.recommendedSpecialty,
-          JSON.stringify(specialtyResult.alternativeSpecialties || []),
-          specialtyResult.reason,
-          specialtyResult.confidence ? parseFloat((specialtyResult.confidence * 100).toFixed(2)) : 75.0,
+          specialtyResult?.careType || null,
+          specialtyResult?.recommendedSpecialty || null,
+          JSON.stringify(specialtyResult?.alternativeSpecialties || []),
+          specialtyResult?.reason || null,
+          specialtyResult?.confidence ? parseFloat((specialtyResult.confidence * 100).toFixed(2)) : null,
           location.trim(),
           geocodeRes.displayName,
           geocodeRes.latitude,
@@ -207,8 +208,8 @@ export class RecommendationService {
           availability,
           radiusKm,
           rankedProviders.length,
-          JSON.stringify(rankedProviders.slice(0, 20)), // Store top 20 ranked providers in audit record
-          'completed'
+          JSON.stringify(rankedProviders.slice(0, 20)),
+          specialtyResult?.status === 'AI_UNAVAILABLE' ? 'ai_unavailable' : 'completed'
         ]
       );
       sessionId = sessionInsert.rows[0].id;
@@ -220,47 +221,43 @@ export class RecommendationService {
 
     return {
       success: true,
-      sessionId: sessionId,
-      patientId: patientId,
-      specialty: specialtyResult,
+      sessionId,
+      patientId,
+      patientName: contextRes.patientName,
       location: {
-        query: location,
+        query: location.trim(),
         displayName: geocodeRes.displayName,
         latitude: geocodeRes.latitude,
-        longitude: geocodeRes.longitude,
-        country: geocodeRes.country,
-        region: geocodeRes.region,
-        city: geocodeRes.city
+        longitude: geocodeRes.longitude
       },
-      searchRadiusKm: radiusKm,
+      searchRadiusKm: radiusKm || 25,
       availabilityPreference: availability,
+      specialty: specialtyResult,
       totalCount: rankedProviders.length,
       providers: rankedProviders,
-      source: searchRes.source,
-      sourceAttribution: searchRes.sourceAttribution
+      sourceAttribution: searchRes.sourceAttribution || 'OpenStreetMap contributors'
     };
   }
 
   /**
-   * Retrieves past recommendation session history for a patient.
+   * Retrieves past recommendation session history for a given patient.
    * 
-   * @param {number} patientId
-   * @param {number} userId
-   * @returns {Promise<Array>}
+   * @param {number} userId - Authenticated user ID
+   * @param {number} patientId - Target patient ID
+   * @returns {Promise<Array<Object>>} List of historical recommendation sessions
    */
-  static async getRecommendationHistory(patientId, userId) {
-    const sessionsQuery = await query(
-      `SELECT id, user_id, patient_id, insight_id, issue_type, risk_level, clinical_summary,
-              recommended_care_type, recommended_specialty, alternative_specialties,
-              specialty_reason, confidence_score, location_query, normalized_location,
-              latitude, longitude, availability_preference, search_radius_km,
-              total_providers_found, providers_result, status, created_at
-       FROM recommendation_sessions 
-       WHERE patient_id = $1 AND user_id = $2
-       ORDER BY created_at DESC LIMIT 50`,
+  static async getRecommendationHistory(userId, patientId) {
+    const historyQuery = await query(
+      `SELECT rs.*, p.patient_name
+       FROM recommendation_sessions rs
+       JOIN patients p ON rs.patient_id = p.id
+       WHERE rs.patient_id = $1 AND rs.user_id = $2
+       ORDER BY rs.created_at DESC
+       LIMIT 20`,
       [patientId, userId]
     );
-    return sessionsQuery.rows;
+
+    return historyQuery.rows;
   }
 }
 

@@ -13,17 +13,42 @@ export const VALID_CARE_TYPES = ['primary_care', 'specialist', 'pharmacist', 'ur
  * recommended specialties, care categories, confidence scores, alternatives,
  * and clinical rationales.
  * 
- * Enforces strict deterministic boundaries outside the LLM:
+ * Enforces strict Zero-Fabrication boundaries:
  * - Never diagnoses
  * - Clamps confidence scores to [0.0, 1.0]
  * - Enforces allowed care-type taxonomy
- * - Provides graceful, deterministic fallbacks to General Practice / Internal Medicine
- *   for ambiguous findings, sparse evidence, or external LLM API outages.
+ * - HONEST FAILURE RULE: When the AI service is unavailable, missing, or errors,
+ *   the service returns an explicit machine-readable error state (AI_UNAVAILABLE)
+ *   with NULL clinical fields. NEVER fabricates a synthetic specialty or confidence.
  */
 export class SpecialtyService {
 
   /**
-   * Evaluates whether the clinical finding context is too sparse to warrant narrow AI specialty inference.
+   * Generates a strict, honest failure state when AI clinical reasoning is unavailable.
+   * Zero-Fabrication Rule: NEVER returns synthetic specialties, confidence, or rationales.
+   * 
+   * @param {string} errorCode - Machine-readable error code
+   * @param {string} message - Human-readable status message
+   * @returns {Object} Explicit machine-readable AI unavailable state
+   */
+  static createUnavailableState(errorCode = 'AI_SERVICE_UNAVAILABLE', message = 'AI clinical analysis is currently unavailable.') {
+    return {
+      success: false,
+      status: 'AI_UNAVAILABLE',
+      errorCode,
+      message,
+      recommendedSpecialty: null,
+      careType: null,
+      confidence: null,
+      reason: null,
+      alternativeSpecialties: [],
+      clinicalBasis: [],
+      uncertainty: null
+    };
+  }
+
+  /**
+   * Evaluates whether the clinical finding context is too sparse to warrant AI specialty inference.
    * 
    * @param {Object} context - Clinical finding context
    * @returns {boolean} True if context is insufficient
@@ -42,61 +67,23 @@ export class SpecialtyService {
   }
 
   /**
-   * Deterministic safe fallback response when evidence is sparse or LLM reasoning is unavailable.
-   * 
-   * @param {Object} context - Original finding context
-   * @param {string} reasonNote - Rationale for fallback
-   * @returns {Object} Standardized structured fallback recommendation
-   */
-  static createSafeFallback(context = {}, reasonNote = 'Baseline primary care evaluation is recommended.') {
-    let basis = ['Clinical history requires professional medical review.'];
-    if (context.evidence) {
-      if (Array.isArray(context.evidence) && context.evidence.length > 0) {
-        basis = context.evidence.map(e => String(e));
-      } else if (typeof context.evidence === 'string' && context.evidence.trim()) {
-        basis = [context.evidence.trim()];
-      }
-    } else if (context.description || context.clinicalSummary) {
-      basis = [context.description || context.clinicalSummary];
-    }
-
-    return {
-      recommendedSpecialty: 'General Practice',
-      careType: 'primary_care',
-      reason: 'A general clinical evaluation is recommended to assess the documented findings and determine if specialist referral or prescription adjustment is necessary.',
-      confidence: 0.70,
-      alternativeSpecialties: [
-        {
-          specialty: 'Internal Medicine',
-          confidence: 0.65,
-          rationale: 'Comprehensive adult health and multi-system medical review.'
-        }
-      ],
-      clinicalBasis: basis,
-      uncertainty: true,
-      fallbackApplied: true,
-      fallbackReason: reasonNote
-    };
-  }
-
-  /**
    * Sanitizes and validates the structured output from the AI reasoner,
    * enforcing strict deterministic constraints, schema compliance, and boundary checks.
    * 
    * @param {Object} rawOutput - Raw parsed JSON from LLM
    * @param {Object} originalContext - Input finding context
-   * @returns {Object} Validated, normalized specialty recommendation
+   * @returns {Object} Validated, normalized specialty recommendation or unavailable state
    */
   static sanitizeReasoningOutput(rawOutput, originalContext = {}) {
     if (!rawOutput || typeof rawOutput !== 'object') {
-      return this.createSafeFallback(originalContext, 'Malformed AI output structure.');
+      return this.createUnavailableState('AI_INVALID_RESPONSE', 'AI clinical analysis produced an invalid response structure.');
     }
 
-    // 1. Specialty Name
-    let recommendedSpecialty = 'General Practice';
-    if (rawOutput.recommendedSpecialty && typeof rawOutput.recommendedSpecialty === 'string' && rawOutput.recommendedSpecialty.trim()) {
-      recommendedSpecialty = rawOutput.recommendedSpecialty.trim();
+    // 1. Specialty Name (Must be provided by LLM; never defaulted to a fake specialty)
+    if (!rawOutput.recommendedSpecialty || typeof rawOutput.recommendedSpecialty !== 'string' || !rawOutput.recommendedSpecialty.trim()) {
+      return this.createUnavailableState('AI_INVALID_RESPONSE', 'AI clinical analysis omitted the recommended specialty.');
     }
+    const recommendedSpecialty = rawOutput.recommendedSpecialty.trim();
 
     // 2. Care Type
     let careType = 'primary_care';
@@ -108,16 +95,15 @@ export class SpecialtyService {
     }
 
     // 3. Reason
-    let reason = 'Professional clinical review is recommended based on documented patient history.';
+    let reason = null;
     if (rawOutput.reason && typeof rawOutput.reason === 'string' && rawOutput.reason.trim()) {
       reason = rawOutput.reason.trim();
     }
 
     // 4. Confidence (0.0 to 1.0)
-    let confidence = 0.75;
+    let confidence = 0.80;
     if (typeof rawOutput.confidence === 'number' && !isNaN(rawOutput.confidence)) {
       let c = rawOutput.confidence;
-      // If LLM returns 0-100 scale, normalize to 0.0-1.0
       if (c > 1.0 && c <= 100.0) {
         c = c / 100.0;
       }
@@ -139,7 +125,7 @@ export class SpecialtyService {
           return {
             specialty: alt.specialty.trim(),
             confidence: altConf,
-            rationale: typeof alt.rationale === 'string' ? alt.rationale.trim() : 'Viable alternative clinical care pathway.'
+            rationale: typeof alt.rationale === 'string' ? alt.rationale.trim() : 'Alternative clinical care pathway.'
           };
         });
     }
@@ -156,8 +142,6 @@ export class SpecialtyService {
         : [String(originalContext.evidence)];
     } else if (originalContext.description || originalContext.clinicalSummary) {
       clinicalBasis = [originalContext.description || originalContext.clinicalSummary];
-    } else {
-      clinicalBasis = ['Clinical finding identified across uploaded patient records.'];
     }
 
     // 7. Uncertainty flag
@@ -166,30 +150,16 @@ export class SpecialtyService {
       uncertainty = true;
     }
 
-    // Enforce inclusion of primary care / general medicine in alternatives if uncertain or specialist
-    const hasGeneralAlt = alternativeSpecialties.some(alt => 
-      alt.specialty.toLowerCase().includes('general') || 
-      alt.specialty.toLowerCase().includes('internal') ||
-      alt.specialty.toLowerCase().includes('primary')
-    );
-
-    if ((careType === 'specialist' || uncertainty) && recommendedSpecialty.toLowerCase() !== 'general practice' && !hasGeneralAlt) {
-      alternativeSpecialties.push({
-        specialty: 'Internal Medicine',
-        confidence: Math.max(0.50, parseFloat((confidence * 0.85).toFixed(2))),
-        rationale: 'Primary clinical assessment to verify multi-system stability.'
-      });
-    }
-
     return {
+      success: true,
+      status: 'AI_SUCCESS',
       recommendedSpecialty,
       careType,
       reason,
       confidence,
       alternativeSpecialties,
       clinicalBasis,
-      uncertainty,
-      fallbackApplied: false
+      uncertainty
     };
   }
 
@@ -198,13 +168,13 @@ export class SpecialtyService {
    * healthcare specialty, care type, confidence, and explainable rationale.
    * 
    * @param {Object} findingContext - Structured clinical finding & context
-   * @returns {Promise<Object>} Validated specialty recommendation
+   * @returns {Promise<Object>} Validated specialty recommendation or machine-readable unavailable state
    */
   static async determineSpecialty(findingContext) {
     // 1. Check for sparse / empty context
     if (this.isInsufficientContext(findingContext)) {
-      console.warn('[SpecialtyService] Finding context is insufficient for narrow specialty triage. Returning safe General Practice baseline.');
-      return this.createSafeFallback(findingContext, 'Insufficient clinical evidence in finding context.');
+      console.warn('[SpecialtyService] Finding context is insufficient for AI specialty inference.');
+      return this.createUnavailableState('INSUFFICIENT_CONTEXT', 'Clinical evidence in finding context is insufficient for specialty triage.');
     }
 
     // 2. Anonymize and prepare payload for AI reasoning
@@ -223,16 +193,18 @@ export class SpecialtyService {
       }
     };
 
-    // 3. Invoke AI specialty reasoner with safety boundary
+    // 3. Invoke AI specialty reasoner with strict honest failure handling
     try {
       const rawAiResult = await AiService.reasonCareSpecialty(reasoningPayload);
       const validatedResult = this.sanitizeReasoningOutput(rawAiResult, findingContext);
       
-      console.log(`[SpecialtyService] Specialty reasoning completed: "${validatedResult.recommendedSpecialty}" (${validatedResult.careType}, conf: ${validatedResult.confidence}).`);
+      if (validatedResult.success) {
+        console.log(`[SpecialtyService] Specialty reasoning completed: "${validatedResult.recommendedSpecialty}" (${validatedResult.careType}, conf: ${validatedResult.confidence}).`);
+      }
       return validatedResult;
     } catch (error) {
-      console.error('[SpecialtyService Error] AI specialty reasoning failed. Activating deterministic fallback:', error.message);
-      return this.createSafeFallback(findingContext, `AI reasoner error: ${error.message}`);
+      console.warn('[SpecialtyService] AI specialty reasoning unavailable:', error.message);
+      return this.createUnavailableState('AI_SERVICE_UNAVAILABLE', 'AI clinical analysis is currently unavailable.');
     }
   }
 

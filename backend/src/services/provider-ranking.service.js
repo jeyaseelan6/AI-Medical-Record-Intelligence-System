@@ -1,53 +1,69 @@
 import { AiService } from './ai.service.js';
 
-/**
- * ProviderRankingService
- * 
- * Multi-Factor Deterministic & AI-Native Recommendation Ranking Engine.
- * 
- * Explanation Hierarchy:
- * 1. Direct Specialty Match -> "Specialized facility aligned with [Specialty] care."
- * 2. Pharmacy / Pharmacist Care -> "Licensed pharmacy for prescription review and medication consultation."
- * 3. Urgent Care -> "Full-service acute hospital / Walk-in clinic for prompt evaluation."
- * 4. Alternative Specialty Match -> "Alternative care pathway aligned with [Alt Specialty]."
- * 5. General / Primary Care Fallback -> "General medical clinic / hospital suitable for initial assessment and referral."
- */
-
-// Fallback keyword taxonomy for deterministic safety floor
+// Keyword taxonomy for deterministic specialty relevance scoring
 const FALLBACK_SPECIALTY_KEYWORDS = {
-  cardiology: ['cardio', 'heart', 'cardiac', 'coronary', 'vascular', 'hypertension', 'ecg', 'cardiovascular'],
-  endocrinology: ['endocrine', 'diabetes', 'diabetic', 'thyroid', 'glucose', 'metabolism', 'hormone', 'insulin'],
-  nephrology: ['nephro', 'kidney', 'renal', 'dialysis', 'creatinine', 'urology', 'urinary'],
-  gastroenterology: ['gastro', 'liver', 'hepat', 'digest', 'stomach', 'endoscopy', 'gi'],
-  pulmonology: ['pulmo', 'chest', 'lung', 'respiratory', 'asthma', 'breathing', 'tb'],
-  neurology: ['neuro', 'brain', 'nerve', 'stroke', 'spine', 'headache'],
-  pharmacology: ['pharmacy', 'chemist', 'pharmacist', 'dispensary', 'drug', 'medicine', 'apothecary'],
-  oncology: ['onco', 'cancer', 'tumor', 'radiation', 'chemo', 'hematology'],
-  pediatrics: ['pediatric', 'child', 'baby', 'maternity', 'infant'],
-  orthopedics: ['ortho', 'bone', 'joint', 'fracture', 'trauma'],
-  dermatology: ['derma', 'skin', 'laser'],
+  cardio: ['heart', 'cardiac', 'cardio', 'hypertension', 'ecg', 'coronary', 'cardiology'],
+  endo: ['diabetes', 'endocrine', 'hormone', 'thyroid', 'glycemic', 'endocrinology'],
+  neuro: ['brain', 'neuro', 'stroke', 'seizure', 'neurology', 'headache', 'spinal'],
+  nephro: ['kidney', 'renal', 'dialysis', 'nephrology', 'creatinine', 'urinary'],
+  pulmo: ['lung', 'respiratory', 'chest', 'asthma', 'pulmonary', 'pulmonology', 'cough'],
+  gastro: ['digestive', 'gastro', 'stomach', 'liver', 'hepatology', 'endoscopy', 'gastric'],
+  ortho: ['bone', 'joint', 'fracture', 'spine', 'orthopedic', 'trauma', 'arthritis'],
+  derm: ['skin', 'derma', 'dermatology', 'eczema', 'psoriasis'],
+  pharma: ['pharmacy', 'chemist', 'drug', 'dispensary', 'pharmacist', 'prescription', 'medication'],
   general: ['general practice', 'family practice', 'family medicine', 'general physician', 'primary physician', 'family doctor']
 };
 
+/**
+ * ProviderRankingService
+ * 
+ * Multi-factor deterministic & AI-native healthcare facility ranking engine.
+ * Computes a standardized 0-100 match score across 5 core dimensions:
+ * 1. Specialty & Clinical Relevance (0-40 pts)
+ * 2. Spatial Proximity & Distance Decay (0-30 pts)
+ * 3. Reputation & Patient Feedback (0-15 pts)
+ * 4. Facility Completeness & Verifiability (0-10 pts)
+ * 5. Availability & Extended Operating Hours (0-5 pts)
+ */
 export class ProviderRankingService {
 
   /**
-   * Deterministic fallback heuristic for specialty relevance scoring.
-   * Accurately distinguishes between direct specialty focus, care-type alignment, alternative pathways, and general facility fallbacks.
+   * Deterministic heuristic for specialty relevance scoring.
+   * Accurately scores direct specialty focus, care-type alignment, and general facilities.
    * 
    * @param {Object} provider
-   * @param {string} recommendedSpecialty
+   * @param {string|null} recommendedSpecialty
    * @param {Array<Object>} alternativeSpecialties
    * @param {string} careType
    * @returns {Object} { score: number, rationale: string }
    */
-  static evaluateSpecialtyRelevanceHeuristic(provider, recommendedSpecialty = 'General Practice', alternativeSpecialties = [], careType = 'primary_care') {
+  static evaluateSpecialtyRelevanceHeuristic(provider, recommendedSpecialty = null, alternativeSpecialties = [], careType = 'primary_care') {
     const provName = (provider.name || '').toLowerCase();
     const provCategory = (provider.category || '').toLowerCase();
     const provSpecialty = (provider.specialty || '').toLowerCase();
     const facilityType = provider.facilityType || 'healthcare_facility';
 
-    const targetSpecClean = (recommendedSpecialty || 'General Practice').toLowerCase();
+    // When no specific AI specialty was inferred (e.g. AI unavailable or general discovery), score by base capability
+    if (!recommendedSpecialty) {
+      if (facilityType === 'hospital') {
+        return {
+          score: 30,
+          rationale: 'Comprehensive hospital facility offering general outpatient consultations.'
+        };
+      }
+      if (facilityType === 'clinic' || facilityType === 'doctors') {
+        return {
+          score: 28,
+          rationale: 'Primary care clinic suited for general medical evaluation.'
+        };
+      }
+      return {
+        score: 20,
+        rationale: 'Local verified healthcare provider.'
+      };
+    }
+
+    const targetSpecClean = recommendedSpecialty.toLowerCase();
     const isTargetGeneral = targetSpecClean.includes('general') || targetSpecClean.includes('family') || targetSpecClean.includes('primary');
 
     // 1. Direct Care Type: Pharmacist Specifics
@@ -90,50 +106,43 @@ export class ProviderRankingService {
     if (matchesTargetSpecialty) {
       return {
         score: 38,
-        rationale: `Specialized facility aligned with ${recommendedSpecialty} care.`
+        rationale: `Clinic name and clinical focus match ${recommendedSpecialty} needs.`
       };
     }
 
-    // 4. Urgent Care Type Handling
-    if (careType === 'urgent_care') {
-      if (facilityType === 'hospital' || provName.includes('base hospital') || provName.includes('teaching hospital') || provName.includes('general hospital')) {
-        return {
-          score: 39,
-          rationale: 'Full-service acute hospital equipped for urgent clinical stabilization.'
-        };
-      }
-      if (facilityType === 'clinic') {
-        return {
-          score: 30,
-          rationale: 'Walk-in medical clinic for prompt outpatient evaluation.'
-        };
-      }
+    // 4. Large Hospital Multi-Disciplinary Coverage (for specialist referrals)
+    if (careType === 'specialist' && (facilityType === 'hospital' || provName.includes('hospital'))) {
+      const isTeachingOrGeneral = provName.includes('teaching') || provName.includes('general') || provName.includes('national') || provName.includes('base') || provName.includes('provincial');
+      return {
+        score: isTeachingOrGeneral ? 34 : 30,
+        rationale: isTeachingOrGeneral 
+          ? `Multi-disciplinary referral hospital with comprehensive ${recommendedSpecialty} departments.`
+          : `General hospital with multi-specialty outpatient consulting.`
+      };
     }
 
-    // 5. Match against Specific Alternative Specialties (excluding generic fallbacks)
-    if (Array.isArray(alternativeSpecialties)) {
-      for (const altObj of alternativeSpecialties) {
-        const altName = (altObj.specialty || '').trim();
-        const altClean = altName.toLowerCase();
+    // 5. Match against Specific Alternative Specialties
+    if (Array.isArray(alternativeSpecialties) && alternativeSpecialties.length > 0) {
+      for (const alt of alternativeSpecialties) {
+        if (!alt || !alt.specialty) continue;
+        const altSpecClean = alt.specialty.toLowerCase();
         
-        if (altClean.includes('general') || altClean.includes('family') || altClean.includes('primary')) {
-          continue;
-        }
-
         let altKeywords = [];
         for (const [key, words] of Object.entries(FALLBACK_SPECIALTY_KEYWORDS)) {
-          if (altClean.includes(key)) {
+          if (altSpecClean.includes(key)) {
             altKeywords = words;
             break;
           }
         }
-        if (altKeywords.length === 0) altKeywords = altClean.split(/[\s-]+/).filter(w => w.length > 3);
+        if (altKeywords.length === 0) {
+          altKeywords = altSpecClean.split(/[\s-]+/).filter(w => w.length > 3);
+        }
 
         const matchesAlt = altKeywords.some(kw => provName.includes(kw) || provCategory.includes(kw));
         if (matchesAlt) {
           return {
             score: 32,
-            rationale: `Alternative care pathway aligned with ${altName}.`
+            rationale: `Clinical capability aligned with alternative pathway: ${alt.specialty}.`
           };
         }
       }
@@ -141,9 +150,9 @@ export class ProviderRankingService {
 
     // 6. Target is Primary Care / General Practice
     if (isTargetGeneral) {
-      if (facilityType === 'clinic' || facilityType === 'doctors') {
+      if (facilityType === 'clinic' || facilityType === 'doctors' || provName.includes('clinic') || provName.includes('centre') || provName.includes('center')) {
         return {
-          score: 34,
+          score: 35,
           rationale: 'Primary care clinic suited for initial general medical evaluation.'
         };
       }
@@ -155,274 +164,284 @@ export class ProviderRankingService {
       }
     }
 
-    // 7. General Hospital Multidisciplinary Baseline (When unspecialized)
-    if (facilityType === 'hospital' || provName.includes('hospital') || provName.includes('nursing home')) {
-      return {
-        score: 30,
-        rationale: 'Comprehensive hospital facility suitable for multidisciplinary assessment and referral.'
-      };
-    }
-
-    // 8. General Medical Clinic Baseline (When unspecialized)
-    if (facilityType === 'clinic' || facilityType === 'doctors' || provName.includes('clinic') || provName.includes('center') || provName.includes('centre')) {
+    // 7. General baseline for clinics & hospitals
+    if (facilityType === 'hospital') {
       return {
         score: 25,
-        rationale: 'General medical clinic suitable for initial assessment and referral.'
+        rationale: 'General hospital with broad diagnostic and medical consulting services.'
+      };
+    }
+    if (facilityType === 'clinic' || facilityType === 'doctors') {
+      return {
+        score: 22,
+        rationale: 'Local medical clinic for outpatient health assessment.'
       };
     }
 
-    // 9. Baseline Healthcare Facility
     return {
-      score: 18,
-      rationale: 'General medical facility suitable for initial assessment and referral.'
+      score: 15,
+      rationale: 'Local healthcare service provider.'
     };
   }
 
   /**
-   * Evaluates proximity score (0 - 30 pts) using continuous distance decay.
+   * Distance Decay Function (0 - 30 Points)
    * 
-   * @param {number|null} distanceKm - Distance in kilometers
-   * @param {number} radiusKm - Search radius in kilometers
-   * @returns {Object} { score: number, rationale: string }
+   * @param {number|null} distanceKm
+   * @param {number} radiusKm
+   * @returns {Object} { score: number, breakdown: string }
    */
   static evaluateDistanceScore(distanceKm, radiusKm = 25) {
     if (distanceKm == null || isNaN(distanceKm)) {
-      return {
-        score: 15,
-        rationale: 'Located within selected search region.'
-      };
+      return { score: 15, breakdown: 'Distance unlisted (central city default: 15.0/30)' };
     }
 
-    const rad = Math.max(1, radiusKm);
-    const clampedDist = Math.min(distanceKm, rad);
-    
-    // Linear decay score from 30 points at 0km down to 5 points at edge of radius
-    const rawScore = 30 * (1 - (clampedDist / rad) * 0.83);
-    const score = Math.max(5, Math.min(30, parseFloat(rawScore.toFixed(1))));
+    const dist = Math.max(0, distanceKm);
+    let score = 0;
 
-    let rationale = `${distanceKm} km away`;
-    if (distanceKm < 1.0) {
-      rationale = `Very close: ${Math.round(distanceKm * 1000)} meters away`;
-    } else if (distanceKm <= 5.0) {
-      rationale = `Nearby: ${distanceKm} km from location`;
+    if (dist <= 1.0) {
+      score = 30.0;
+    } else if (dist <= 3.0) {
+      score = 30.0 - (dist - 1.0) * 1.5; // 30.0 -> 27.0
+    } else if (dist <= 5.0) {
+      score = 27.0 - (dist - 3.0) * 1.5; // 27.0 -> 24.0
+    } else if (dist <= 10.0) {
+      score = 24.0 - (dist - 5.0) * 1.2; // 24.0 -> 18.0
+    } else if (dist <= 20.0) {
+      score = 18.0 - (dist - 10.0) * 0.8; // 18.0 -> 10.0
+    } else if (dist <= radiusKm) {
+      const remainingRange = Math.max(1, radiusKm - 20);
+      score = 10.0 - ((dist - 20.0) / remainingRange) * 6.0; // 10.0 -> 4.0
     } else {
-      rationale = `${distanceKm} km from selected location`;
+      score = Math.max(0, 4.0 - (dist - radiusKm) * 0.5);
     }
 
+    score = Math.max(0.0, Math.min(30.0, parseFloat(score.toFixed(1))));
     return {
       score,
-      rationale
+      breakdown: `${dist.toFixed(1)} km away (${score.toFixed(1)}/30 pts)`
     };
   }
 
   /**
-   * Evaluates reputation and rating signals (0 - 15 pts).
-   * Strictly avoids fabricating ratings.
+   * Reputation & Patient Feedback Score (0 - 15 Points)
    * 
-   * @param {Object} provider
-   * @returns {Object} { score: number, rationale: string }
+   * @param {number|null} rating
+   * @param {number|null} reviewCount
+   * @returns {Object} { score: number, breakdown: string }
    */
-  static evaluateReputationScore(provider) {
-    if (typeof provider.rating === 'number' && provider.rating > 0) {
-      const ratingPts = (Math.min(5.0, provider.rating) / 5.0) * 10; // Up to 10 pts
-      const reviewPts = typeof provider.reviewCount === 'number' 
-        ? Math.min(5, Math.log10(provider.reviewCount + 1) * 2.5) // Up to 5 pts
-        : 2.0;
-
-      const totalRepScore = parseFloat((ratingPts + reviewPts).toFixed(1));
+  static evaluateReputationScore(rating, reviewCount) {
+    if (typeof rating !== 'number' || isNaN(rating) || rating <= 0) {
       return {
-        score: Math.min(15, totalRepScore),
-        rationale: `Public rating: ${provider.rating} ★ (${provider.reviewCount || 0} reviews)`
+        score: 7.5,
+        breakdown: 'Unrated in public directory (neutral baseline: 7.5/15 pts)'
       };
     }
 
-    // Neutral baseline for unrated public directories (8.0 / 15)
+    const clampedRating = Math.max(1.0, Math.min(5.0, rating));
+    let baseScore = (clampedRating / 5.0) * 12.0;
+
+    let reviewBonus = 0;
+    const count = typeof reviewCount === 'number' ? reviewCount : 0;
+    if (count >= 100) {
+      reviewBonus = 3.0;
+    } else if (count >= 30) {
+      reviewBonus = 2.0;
+    } else if (count >= 5) {
+      reviewBonus = 1.0;
+    } else if (count > 0) {
+      reviewBonus = 0.5;
+    }
+
+    const score = Math.min(15.0, parseFloat((baseScore + reviewBonus).toFixed(1)));
     return {
-      score: 8.0,
-      rationale: 'Verified public healthcare directory listing'
+      score,
+      breakdown: `${clampedRating.toFixed(1)}★ (${count} reviews: ${score.toFixed(1)}/15 pts)`
     };
   }
 
   /**
-   * Evaluates data completeness & contact readiness (0 - 10 pts).
+   * Facility Completeness & Verifiability Score (0 - 10 Points)
    * 
    * @param {Object} provider
-   * @returns {Object} { score: number, rationale: string }
+   * @returns {Object} { score: number, breakdown: string }
    */
-  static evaluateDataCompleteness(provider) {
+  static evaluateCompletenessScore(provider) {
     let score = 0;
-    let details = [];
+    const items = [];
 
-    if (provider.name && provider.name.trim().length > 2) {
-      score += 2.5;
+    // Verified Address (+3 pts)
+    if (provider.address && provider.address !== 'Address not listed' && provider.address.length > 5) {
+      score += 3.0;
+      items.push('Address');
     }
 
-    if (provider.address && provider.address.trim().length > 5) {
-      score += 2.5;
-      details.push('Address listed');
+    // Verified Phone (+3 pts)
+    if (provider.phone && provider.phone !== 'Not listed' && provider.phone.length > 6) {
+      score += 3.0;
+      items.push('Phone');
     }
 
-    if (provider.phone && provider.phone.trim().length > 3) {
-      score += 2.5;
-      details.push('Phone available');
+    // GPS Geolocation (+2 pts)
+    if (provider.latitude != null && provider.longitude != null) {
+      score += 2.0;
+      items.push('GPS');
     }
 
-    if (provider.mapUrl || (provider.latitude && provider.longitude)) {
-      score += 2.5;
-      details.push('Direct map navigation');
+    // Official Authority Verification / Website (+2 pts)
+    if (provider.governmentVerification || (provider.website && provider.website.startsWith('http'))) {
+      score += 2.0;
+      items.push(provider.governmentVerification ? 'MOH Verified' : 'Website');
     }
 
     return {
-      score: parseFloat(score.toFixed(1)),
-      rationale: details.length > 0 ? details.join(' • ') : 'Verified facility listing'
+      score: Math.min(10.0, score),
+      breakdown: `Verified: ${items.join(', ')} (${score}/10 pts)`
     };
   }
 
   /**
-   * Evaluates alignment with user availability preference (0 - 5 pts)
-   * explicitly framed as facility capability ("Likely suitable for your preference")
-   * without falsely implying live appointment booking.
+   * Availability & Operating Hours Score (0 - 5 Points)
    * 
    * @param {Object} provider
-   * @param {string} availabilityPreference - 'this_week', 'today', 'evenings', 'weekends', 'flexible'
-   * @returns {Object} { score: number, rationale: string }
+   * @param {string} userPreference
+   * @returns {Object} { score: number, breakdown: string }
    */
-  static evaluateAvailabilityAlignment(provider, availabilityPreference = 'this_week') {
-    const facilityType = provider.facilityType || 'healthcare_facility';
-    const pref = (availabilityPreference || 'this_week').toLowerCase();
+  static evaluateAvailabilityScore(provider, userPreference = 'this_week') {
+    const is24_7 = provider.emergencyCapable || provider.openingHours === '24/7' || (typeof provider.name === 'string' && (provider.name.toLowerCase().includes('teaching') || provider.name.toLowerCase().includes('national') || provider.name.toLowerCase().includes('general hospital')));
 
-    if (facilityType === 'hospital') {
-      if (pref === 'today' || pref === 'evenings' || pref === 'weekends') {
-        return {
-          score: 5.0,
-          rationale: 'Likely suitable for your preference: Full-service hospital with 24/7 or acute capability (contact facility to confirm specific doctor schedules).'
-        };
-      }
-      return {
-        score: 4.5,
-        rationale: 'Likely suitable for your preference: Facility offers daily scheduled outpatient clinics (contact facility to confirm consultation days).'
-      };
+    let score = 3.0;
+    let breakdown = 'Standard clinic outpatient operating schedule (3.0/5)';
+
+    if (is24_7) {
+      score = 5.0;
+      breakdown = '24/7 Emergency & Outpatient Admissions available (5.0/5)';
+    } else if (userPreference === 'today' || userPreference === 'urgent') {
+      score = is24_7 ? 5.0 : 2.5;
+      breakdown = is24_7 ? 'Immediate urgent walk-in available (5.0/5)' : 'Outpatient consultation queue (2.5/5)';
     }
 
-    if (facilityType === 'pharmacy') {
-      return {
-        score: 4.0,
-        rationale: 'Likely suitable for your preference: Retail dispensary standard operating hours.'
-      };
-    }
-
-    // Standard clinics
-    return {
-      score: 3.5,
-      rationale: 'Preference alignment: Outpatient medical clinic (contact facility to confirm consultation times).'
-    };
+    return { score, breakdown };
   }
 
   /**
-   * Main ranking function: Evaluates, scores, and sorts candidate providers using
-   * AI-native semantic matching with deterministic fallback and multi-criteria scoring.
+   * Ranks an array of providers based on 5-factor scoring and semantic relevance.
    * 
-   * @param {Array<Object>} providers - Array of normalized real provider records
-   * @param {Object} recommendationContext - Context containing AI specialty, careType, and alternatives
-   * @param {Object} options - Search options (radiusKm, availabilityPreference, skipAiSemantic)
-   * @returns {Promise<Array<Object>>} Ranked provider list with totalScore, breakdown, and explanations
+   * @param {Array<Object>} providers - Raw unified provider records
+   * @param {Object} recommendationContext - Finding & triage output
+   * @param {Object} options - Search options
+   * @returns {Promise<Array<Object>>} Sorted and ranked provider records with detailed scores
    */
   static async rankProviders(providers = [], recommendationContext = {}, options = {}) {
     if (!Array.isArray(providers) || providers.length === 0) {
       return [];
     }
 
-    const { recommendedSpecialty = 'General Practice', alternativeSpecialties = [], careType = 'primary_care' } = recommendationContext;
+    const { recommendedSpecialty = null, alternativeSpecialties = [], careType = 'all' } = recommendationContext;
     const { radiusKm = 25, availabilityPreference = 'this_week', skipAiSemantic = false } = options;
 
-    // 1. Batch AI Semantic Specialty Matching (with deterministic fallback)
-    const semanticMap = new Map();
-
-    if (!skipAiSemantic && providers.length > 0) {
+    // 1. Batch AI Semantic Specialty Matching (only if AI recommended a specialty and is configured)
+    let aiRelevanceMap = new Map();
+    if (!skipAiSemantic && recommendedSpecialty && AiService.isConfigured && AiService.isConfigured()) {
       try {
-        const candidateSlice = providers.slice(0, 30);
-        const aiMatches = await AiService.matchProviderSpecialtiesSemantic(
-          recommendedSpecialty,
-          careType,
-          candidateSlice
-        );
+        const batchPayload = providers.slice(0, 15).map(p => ({
+          id: p.id,
+          name: p.name,
+          category: p.category || p.facilityType,
+          specialty: p.specialty || null,
+          address: p.address || null
+        }));
 
-        if (Array.isArray(aiMatches)) {
-          aiMatches.forEach(m => {
-            if (m && m.id && typeof m.score === 'number') {
-              semanticMap.set(m.id, {
-                score: Math.max(15, Math.min(40, parseFloat(m.score.toFixed(1)))),
-                rationale: m.rationale || `Evaluated for ${recommendedSpecialty}.`
-              });
+        const semanticMatches = await AiService.matchSpecialtyProvidersBatch({
+          targetSpecialty: recommendedSpecialty,
+          careType,
+          providers: batchPayload
+        });
+
+        if (Array.isArray(semanticMatches)) {
+          semanticMatches.forEach(match => {
+            if (match && match.id) {
+              aiRelevanceMap.set(match.id, match);
             }
           });
         }
       } catch (aiErr) {
-        console.warn('[ProviderRankingService] AI semantic batch matching failed, using deterministic fallback floor:', aiErr.message);
+        console.warn('[ProviderRankingService] AI semantic batch matching skipped:', aiErr.message);
       }
     }
 
-    // 2. Score all providers across all 5 dimensions
-    const scoredProviders = providers.map(provider => {
-      // 1. Specialty Score (0 - 40 pts): AI semantic score if available, else deterministic heuristic
-      let specialtyEval = semanticMap.get(provider.id);
-      if (!specialtyEval) {
-        specialtyEval = this.evaluateSpecialtyRelevanceHeuristic(provider, recommendedSpecialty, alternativeSpecialties, careType);
+    // 2. Score each provider across the 5 dimensions
+    const scoredProviders = providers.map(prov => {
+      // Dimension 1: Specialty Relevance (0 - 40 pts)
+      let specialtyScore = 0;
+      let matchReason = '';
+
+      if (aiRelevanceMap.has(prov.id)) {
+        const aiMatch = aiRelevanceMap.get(prov.id);
+        specialtyScore = Math.max(0, Math.min(40, typeof aiMatch.specialtyScore === 'number' ? aiMatch.specialtyScore : 30));
+        matchReason = aiMatch.matchReason || `Clinical capabilities aligned with ${recommendedSpecialty}.`;
+      } else {
+        const heuristic = this.evaluateSpecialtyRelevanceHeuristic(
+          prov,
+          recommendedSpecialty,
+          alternativeSpecialties,
+          careType
+        );
+        specialtyScore = heuristic.score;
+        matchReason = heuristic.rationale;
       }
 
-      // 2. Distance Score (0 - 30 pts)
-      const distanceEval = this.evaluateDistanceScore(provider.distanceKm, radiusKm);
+      // Dimension 2: Distance Decay (0 - 30 pts)
+      const distanceEval = this.evaluateDistanceScore(prov.distanceKm, radiusKm);
 
-      // 3. Reputation Score (0 - 15 pts)
-      const reputationEval = this.evaluateReputationScore(provider);
+      // Dimension 3: Reputation & Feedback (0 - 15 pts)
+      const reputationEval = this.evaluateReputationScore(prov.rating, prov.reviewCount);
 
-      // 4. Data Completeness (0 - 10 pts)
-      const completenessEval = this.evaluateDataCompleteness(provider);
+      // Dimension 4: Completeness & Verification (0 - 10 pts)
+      const completenessEval = this.evaluateCompletenessScore(prov);
 
-      // 5. Availability Alignment (0 - 5 pts)
-      const availabilityEval = this.evaluateAvailabilityAlignment(provider, availabilityPreference);
+      // Dimension 5: Availability (0 - 5 pts)
+      const availabilityEval = this.evaluateAvailabilityScore(prov, availabilityPreference);
 
-      // Total Score (0 - 100)
       const totalScore = parseFloat(
-        (specialtyEval.score + distanceEval.score + reputationEval.score + completenessEval.score + availabilityEval.score).toFixed(1)
+        (specialtyScore + distanceEval.score + reputationEval.score + completenessEval.score + availabilityEval.score).toFixed(1)
       );
 
-      // Collect concise explainable match bullet points
-      const matchReasons = [
-        specialtyEval.rationale,
-        distanceEval.rationale,
-        availabilityEval.rationale
-      ];
-      if (provider.phone) matchReasons.push(`Phone: ${provider.phone}`);
-      if (provider.rating) matchReasons.push(`Rating: ${provider.rating} ★`);
-
       return {
-        ...provider,
+        ...prov,
         ranking: {
           totalScore,
-          matchScorePercent: Math.round(totalScore),
+          matchScorePercent: Math.min(100, Math.round((totalScore / 100) * 100)),
+          matchReason,
+          breakdown: {
+            specialty: { score: specialtyScore, max: 40, rationale: matchReason },
+            distance: { score: distanceEval.score, max: 30, details: distanceEval.breakdown },
+            reputation: { score: reputationEval.score, max: 15, details: reputationEval.breakdown },
+            completeness: { score: completenessEval.score, max: 10, details: completenessEval.breakdown },
+            availability: { score: availabilityEval.score, max: 5, details: availabilityEval.breakdown }
+          },
           scoreBreakdown: {
-            specialtyScore: specialtyEval.score,
+            specialtyScore,
             distanceScore: distanceEval.score,
             reputationScore: reputationEval.score,
             completenessScore: completenessEval.score,
             availabilityScore: availabilityEval.score
-          },
-          matchReasons,
-          primaryExplanation: specialtyEval.rationale
+          }
         }
       };
     });
 
-    // 3. Sort descending by totalScore, breaking ties with closer distanceKm
+    // 3. Sort descending by total score, secondary sort by distance ascending
     scoredProviders.sort((a, b) => {
       if (b.ranking.totalScore !== a.ranking.totalScore) {
         return b.ranking.totalScore - a.ranking.totalScore;
       }
-      return (a.distanceKm || 999) - (b.distanceKm || 999);
+      const distA = a.distanceKm != null ? a.distanceKm : 999;
+      const distB = b.distanceKm != null ? b.distanceKm : 999;
+      return distA - distB;
     });
 
-    // 4. Assign integer rank positions (1, 2, 3...)
+    // 4. Assign rank numbers
     return scoredProviders.map((prov, index) => ({
       ...prov,
       rank: index + 1

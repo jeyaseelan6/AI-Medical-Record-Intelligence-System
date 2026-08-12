@@ -517,91 +517,116 @@ const CareRecommendation = ({
                   <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>AI analyzing clinical context & specialty routing...</span>
                 </div>
               ) : triageResult ? (
-                <div className="dashboard-card" style={{ padding: '20px', borderLeft: '4px solid var(--color-primary)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div>
-                      <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-primary)' }}>
-                        AI Recommended Care
-                      </span>
-                      <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '2px 0 0 0', color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
-                        {triageResult.recommendedSpecialty}
-                      </h4>
-                    </div>
-                    {(() => {
-                      const badge = getCareTypeBadgeColor(triageResult.careType);
-                      return (
-                        <span style={{
-                          backgroundColor: badge.bg,
-                          color: badge.text,
-                          border: `1px solid ${badge.border}`,
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '4px 10px',
-                          borderRadius: '16px'
-                        }}>
-                          {badge.label}
+                triageResult.status === 'AI_UNAVAILABLE' || triageResult.success === false || !triageResult.recommendedSpecialty ? (
+                  /* Honest Failure State: AI Unavailable */
+                  <div className="dashboard-card" style={{ padding: '18px 20px', borderLeft: '4px solid #f59e0b', backgroundColor: 'var(--color-bg)' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <AlertCircle size={20} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
+                      <div>
+                        <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--color-text-main)' }}>
+                          AI Clinical Analysis Unavailable
+                        </h4>
+                        <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', margin: '0 0 6px 0', lineHeight: 1.4 }}>
+                          The AI service is not configured or temporarily unavailable. No clinical recommendation was generated.
+                        </p>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-light)' }}>
+                          You can still discover local healthcare providers by selecting your preferred city below.
                         </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Confidence Bar */}
-                  <div style={{ marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
-                      <span style={{ color: 'var(--color-text-muted)' }}>Triage Confidence</span>
-                      <span style={{ fontWeight: 700, color: 'var(--color-text-main)' }}>
-                        {Math.round((triageResult.confidence || 0.85) * 100)}%
-                      </span>
-                    </div>
-                    <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div 
-                        style={{ 
-                          height: '100%', 
-                          width: `${Math.round((triageResult.confidence || 0.85) * 100)}%`,
-                          backgroundColor: 'var(--color-primary)',
-                          borderRadius: '3px'
-                        }} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Clinical Reason */}
-                  <p style={{ fontSize: '12.5px', color: 'var(--color-text-main)', lineHeight: 1.4, margin: '0 0 12px 0' }}>
-                    {triageResult.reason}
-                  </p>
-
-                  {/* Alternative Specialties */}
-                  {triageResult.alternativeSpecialties && triageResult.alternativeSpecialties.length > 0 && (
-                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--color-border)' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px' }}>
-                        Alternative Care Pathways:
-                      </span>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {triageResult.alternativeSpecialties.map((alt, idx) => (
-                          <span 
-                            key={idx}
-                            style={{
-                              fontSize: '11px',
-                              padding: '2px 8px',
-                              backgroundColor: 'var(--color-bg)',
-                              border: '1px solid var(--color-border)',
-                              borderRadius: '12px',
-                              color: 'var(--color-text-muted)'
-                            }}
-                          >
-                            {alt.specialty} ({Math.round((alt.confidence || 0.7) * 100)}%)
-                          </span>
-                        ))}
                       </div>
                     </div>
-                  )}
-
-                  {/* Disclaimer banner */}
-                  <div style={{ marginTop: '12px', padding: '8px 10px', backgroundColor: '#fffbe6', border: '1px solid #fef3c7', borderRadius: 'var(--radius-sm)', fontSize: '11px', color: '#92400e', display: 'flex', gap: '6px' }}>
-                    <Info size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <span>Care triage suggests physician specialties for provider discovery and does not substitute a clinical diagnosis.</span>
                   </div>
-                </div>
+                ) : (
+                  /* Authentic AI Result */
+                  <div className="dashboard-card" style={{ padding: '20px', borderLeft: '4px solid var(--color-primary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-primary)' }}>
+                          AI Recommended Care
+                        </span>
+                        <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '2px 0 0 0', color: 'var(--color-text-main)', fontFamily: 'var(--font-display)' }}>
+                          {triageResult.recommendedSpecialty}
+                        </h4>
+                      </div>
+                      {(() => {
+                        const badge = getCareTypeBadgeColor(triageResult.careType);
+                        return (
+                          <span style={{
+                            backgroundColor: badge.bg,
+                            color: badge.text,
+                            border: `1px solid ${badge.border}`,
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: '16px'
+                          }}>
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Confidence Bar */}
+                    {triageResult.confidence != null && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
+                          <span style={{ color: 'var(--color-text-muted)' }}>Triage Confidence</span>
+                          <span style={{ fontWeight: 700, color: 'var(--color-text-main)' }}>
+                            {Math.round(triageResult.confidence * 100)}%
+                          </span>
+                        </div>
+                        <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div 
+                            style={{ 
+                              height: '100%', 
+                              width: `${Math.round(triageResult.confidence * 100)}%`,
+                              backgroundColor: 'var(--color-primary)',
+                              borderRadius: '3px'
+                            }} 
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Clinical Reason */}
+                    {triageResult.reason && (
+                      <p style={{ fontSize: '12.5px', color: 'var(--color-text-main)', lineHeight: 1.4, margin: '0 0 12px 0' }}>
+                        {triageResult.reason}
+                      </p>
+                    )}
+
+                    {/* Alternative Specialties */}
+                    {triageResult.alternativeSpecialties && triageResult.alternativeSpecialties.length > 0 && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--color-border)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '6px' }}>
+                          Alternative Care Pathways:
+                        </span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {triageResult.alternativeSpecialties.map((alt, idx) => (
+                            <span 
+                              key={idx}
+                              style={{
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                backgroundColor: 'var(--color-bg)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '12px',
+                                color: 'var(--color-text-muted)'
+                              }}
+                            >
+                              {alt.specialty} ({Math.round((alt.confidence || 0.7) * 100)}%)
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Disclaimer banner */}
+                    <div style={{ marginTop: '12px', padding: '8px 10px', backgroundColor: '#fffbe6', border: '1px solid #fef3c7', borderRadius: 'var(--radius-sm)', fontSize: '11px', color: '#92400e', display: 'flex', gap: '6px' }}>
+                      <Info size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                      <span>Care triage suggests physician specialties for provider discovery and does not substitute a clinical diagnosis.</span>
+                    </div>
+                  </div>
+                )
               ) : null}
 
               {/* Step 3: Location Search & Filter Controls */}

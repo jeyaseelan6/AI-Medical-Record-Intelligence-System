@@ -215,7 +215,7 @@ async function runAdversarialIntegritySuite() {
   );
 
   // --------------------------------------------------------------------------
-  // TEST 11: AI receives clinical finding and must never produce provider objects
+  // TEST 11: AI Unavailable -> Returns Honest AI_UNAVAILABLE State (No Synthetic Fallback)
   // --------------------------------------------------------------------------
   const clinicalFindingContext = {
     issueType: 'medication_conflict',
@@ -226,9 +226,14 @@ async function runAdversarialIntegritySuite() {
   const aiTriageResult = await SpecialtyService.determineSpecialty(clinicalFindingContext);
   assert(
     11,
-    'AI Specialty Triage Decoupling & Boundary Verification',
-    aiTriageResult.recommendedSpecialty && !aiTriageResult.providers && !aiTriageResult.doctors && !aiTriageResult.hospitals,
-    `AI output contains recommended specialty ("${aiTriageResult.recommendedSpecialty}") and zero provider entities`
+    'Honest AI Failure State (Zero Synthetic Medical Fallback)',
+    aiTriageResult.success === false &&
+    aiTriageResult.status === 'AI_UNAVAILABLE' &&
+    aiTriageResult.recommendedSpecialty === null &&
+    aiTriageResult.confidence === null &&
+    aiTriageResult.reason === null &&
+    aiTriageResult.alternativeSpecialties.length === 0,
+    `When AI key is missing, system returns explicit AI_UNAVAILABLE with recommendedSpecialty: null (0 synthetic specialties)`
   );
 
   // --------------------------------------------------------------------------
