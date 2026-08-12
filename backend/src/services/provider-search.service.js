@@ -12,7 +12,7 @@ const MAX_CACHE_SIZE = 300;
  * ProviderSearchService
  * 
  * Core provider discovery layer that aggregates real public healthcare directories
- * (OpenStreetMap, Google Places, Sri Lanka Ministry of Health MFL, Doc990)
+ * (OpenStreetMap, Google Places API, Sri Lanka Ministry of Health MFL)
  * into a single unified, enriched provider collection.
  * 
  * Privacy & Security Guarantees:
@@ -25,8 +25,7 @@ export class ProviderSearchService {
 
   /**
    * Searches for real healthcare providers near the specified geographic coordinates,
-   * aggregating data across OpenStreetMap, Google Places (if configured), Ministry of Health,
-   * and legitimate doctor channeling platforms.
+   * aggregating data across OpenStreetMap, Google Places API (if configured), and Ministry of Health MFL.
    * 
    * @param {Object} params
    * @param {number} params.latitude - Search origin latitude

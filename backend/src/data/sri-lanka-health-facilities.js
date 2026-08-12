@@ -22,9 +22,7 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
     website: 'http://www.thjaffna.health.gov.lk',
     coordinates: { latitude: 9.6651, longitude: 80.0093 },
     emergencyCapable: true,
-    officialAuthority: 'Ministry of Health, Sri Lanka',
-    hasChannelingDesk: true,
-    channelingPlatform: 'Doc990 / Hospital OPD Service'
+    officialAuthority: 'Ministry of Health, Sri Lanka'
   },
   {
     id: 'gov_bh_chavakachcheri',
@@ -80,9 +78,7 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
     website: 'http://www.nhsl.health.gov.lk',
     coordinates: { latitude: 6.9198, longitude: 79.8682 },
     emergencyCapable: true,
-    officialAuthority: 'Ministry of Health, Sri Lanka',
-    hasChannelingDesk: true,
-    channelingPlatform: 'Doc990 / Hospital Channeling'
+    officialAuthority: 'Ministry of Health, Sri Lanka'
   },
   {
     id: 'gov_csth_kalubowila',
@@ -95,9 +91,7 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
     officialPhone: '+94 11 276 3064',
     coordinates: { latitude: 6.8711, longitude: 79.8804 },
     emergencyCapable: true,
-    officialAuthority: 'Ministry of Health, Sri Lanka',
-    hasChannelingDesk: true,
-    channelingPlatform: 'Doc990 / Hospital Channeling'
+    officialAuthority: 'Ministry of Health, Sri Lanka'
   },
   {
     id: 'gov_cnth_ragama',
@@ -110,9 +104,7 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
     officialPhone: '+94 11 295 9261',
     coordinates: { latitude: 7.0275, longitude: 79.9238 },
     emergencyCapable: true,
-    officialAuthority: 'Ministry of Health, Sri Lanka',
-    hasChannelingDesk: true,
-    channelingPlatform: 'Doc990 / Hospital Channeling'
+    officialAuthority: 'Ministry of Health, Sri Lanka'
   },
   {
     id: 'gov_dgh_negombo',
@@ -125,9 +117,7 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
     officialPhone: '+94 31 222 2261',
     coordinates: { latitude: 7.2094, longitude: 79.8331 },
     emergencyCapable: true,
-    officialAuthority: 'Ministry of Health, Sri Lanka',
-    hasChannelingDesk: true,
-    channelingPlatform: 'Doc990 / Hospital Channeling'
+    officialAuthority: 'Ministry of Health, Sri Lanka'
   },
   {
     id: 'gov_sjth_kotte',
@@ -140,9 +130,7 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
     officialPhone: '+94 11 277 8610',
     coordinates: { latitude: 6.8753, longitude: 79.9328 },
     emergencyCapable: true,
-    officialAuthority: 'Ministry of Health, Sri Lanka',
-    hasChannelingDesk: true,
-    channelingPlatform: 'Doc990 / eChannelling'
+    officialAuthority: 'Ministry of Health, Sri Lanka'
   },
 
   // Central Province (Kandy, Matale, Nuwara Eliya)
@@ -158,9 +146,7 @@ export const SRI_LANKA_GOVERNMENT_FACILITIES = [
     website: 'http://www.kandyhospital.health.gov.lk',
     coordinates: { latitude: 7.2906, longitude: 80.6337 },
     emergencyCapable: true,
-    officialAuthority: 'Ministry of Health, Sri Lanka',
-    hasChannelingDesk: true,
-    channelingPlatform: 'Doc990 / Hospital Channeling'
+    officialAuthority: 'Ministry of Health, Sri Lanka'
   },
   {
     id: 'gov_th_peradeniya',
@@ -259,9 +245,7 @@ export function findGovernmentFacilityMatch(providerName, latitude = null, longi
         officialAuthority: fac.officialAuthority,
         officialPhone: fac.officialPhone,
         website: fac.website || null,
-        emergencyCapable: fac.emergencyCapable,
-        hasChannelingDesk: fac.hasChannelingDesk || false,
-        channelingPlatform: fac.channelingPlatform || null
+        emergencyCapable: fac.emergencyCapable
       };
     }
   }
