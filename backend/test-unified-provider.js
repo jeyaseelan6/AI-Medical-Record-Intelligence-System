@@ -173,7 +173,7 @@ async function runUnifiedProviderTests() {
   const channelingDetails = ChannelingAdapter.getChannelingDetails(jaffnaTeachingBase, 'Endocrinology');
   assert(
     'TEST 8 — Legitimate Channeling Enrichment',
-    channelingDetails !== null && channelingDetails.available === true && channelingDetails.bookingUrl.includes('doc990.lk'),
+    channelingDetails !== null && channelingDetails.available === true && channelingDetails.bookingUrl.includes('doc.lk'),
     `Attached verified booking portal: ${channelingDetails?.bookingUrl} (Hotline: ${channelingDetails?.hotline})`
   );
 
