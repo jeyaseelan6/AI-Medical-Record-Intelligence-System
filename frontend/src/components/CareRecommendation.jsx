@@ -24,12 +24,11 @@ const CareRecommendation = ({
   patient, 
   initialFinding = null, 
   onClearFinding = null,
-  insights = [], 
-  forecast = null 
+  insights = [] 
 }) => {
   // Finding & Triage States
   const [selectedFinding, setSelectedFinding] = useState(initialFinding);
-  const [findingType, setFindingType] = useState('insight'); // 'insight', 'forecast', 'custom'
+  const [findingType, setFindingType] = useState('insight'); // 'insight', 'custom'
   const [customConcern, setCustomConcern] = useState('');
   const [loadingTriage, setLoadingTriage] = useState(false);
   const [triageResult, setTriageResult] = useState(null);
@@ -250,7 +249,7 @@ const CareRecommendation = ({
               </h2>
             </div>
             <p style={{ fontSize: '13px', margin: 0, opacity: 0.9, maxWidth: '650px', color: '#f0fdfa' }}>
-              Connect detected medical alerts, medication conflicts, and health forecasts with real-world local physicians, specialized clinics, and verified hospitals.
+              Connect detected clinical alerts and medication conflicts with real-world local physicians, specialized clinics, and verified hospitals.
             </p>
           </div>
 

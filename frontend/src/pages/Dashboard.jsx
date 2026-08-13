@@ -18,9 +18,6 @@ const Dashboard = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [insights, setInsights] = useState([]);
-  const [forecast, setForecast] = useState(null);
-  const [loadingForecast, setLoadingForecast] = useState(false);
-  const [errorForecast, setErrorForecast] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -90,23 +87,6 @@ const Dashboard = () => {
       const insightsRes = await api.get(`/insights/${id}`);
       setInsights(insightsRes.data.data);
 
-      // Fetch AI Forecast
-      try {
-        setLoadingForecast(true);
-        setErrorForecast(null);
-        const forecastRes = await api.get(`/insights/forecast/${id}`);
-        if (forecastRes.data && forecastRes.data.success) {
-          setForecast(forecastRes.data.data);
-        } else {
-          setErrorForecast(forecastRes.data?.message || 'Failed to load forecast data');
-        }
-      } catch (fErr) {
-        console.error('Error fetching AI health forecast:', fErr.message);
-        setErrorForecast('Unable to compile AI health forecast.');
-      } finally {
-        setLoadingForecast(false);
-      }
-
       // Fetch Documents list
       try {
         setLoadingDocuments(true);
@@ -145,8 +125,6 @@ const Dashboard = () => {
       setSelectedPatient(null);
       setTimeline([]);
       setInsights([]);
-      setForecast(null);
-      setErrorForecast(null);
       setDocuments([]);
     }
   }, [selectedPatientId, patients]);
@@ -499,7 +477,7 @@ const Dashboard = () => {
                 }}
               >
                 <Activity size={15} />
-                <span>AI Health Forecast</span>
+                <span>Clinical Metric Trends</span>
               </button>
 
               <button 
@@ -615,22 +593,15 @@ const Dashboard = () => {
                 <div className="dashboard-card" style={{ padding: '30px' }}>
                   <h3 className="card-title">
                     <Activity size={18} style={{ color: 'var(--color-secondary)' }} />
-                    <span>AI Health Forecast</span>
+                    <span>Clinical Metric Trends</span>
                   </h3>
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-                    30-day health trajectory forecasts, cardiovascular risk projections, and metrics history logs.
+                    Historical clinical measurements and vital metrics parsed from documented medical records.
                   </p>
                   <TrendCharts 
                     timeline={timeline} 
                     patientId={selectedPatientId} 
                     onViewDocument={setPreviewDoc} 
-                    forecast={forecast}
-                    loadingForecast={loadingForecast}
-                    errorForecast={errorForecast}
-                    onFindCare={(finding) => {
-                      setActiveCareFinding(finding);
-                      setWorkspaceTab('navigation');
-                    }}
                   />
                 </div>
               </div>
@@ -689,7 +660,6 @@ const Dashboard = () => {
                   initialFinding={activeCareFinding}
                   onClearFinding={() => setActiveCareFinding(null)}
                   insights={insights}
-                  forecast={forecast}
                   onViewDocument={setPreviewDoc}
                 />
               </div>
