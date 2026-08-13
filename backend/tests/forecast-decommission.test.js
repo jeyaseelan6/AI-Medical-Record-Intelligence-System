@@ -1,11 +1,11 @@
-import './src/prestart.js';
+import '../src/prestart.js';
 import http from 'http';
 import jwt from 'jsonwebtoken';
-import app from './src/app.js';
-import { AiService } from './src/services/ai.service.js';
-import * as insightController from './src/controllers/insight.controller.js';
+import app from '../src/app.js';
+import { AiService } from '../src/services/ai.service.js';
+import * as insightController from '../src/controllers/insight.controller.js';
 
-async function runDecommissionVerificationSuite() {
+export async function runDecommissionVerificationSuite() {
   console.log('================================================================');
   console.log('  MedAI — AI Health Forecast Permanent Decommission Audit       ');
   console.log('================================================================\n');
@@ -121,14 +121,14 @@ async function runDecommissionVerificationSuite() {
   console.log(` Decommission Audit Result: ${passed} / ${total} Passed`);
   console.log('================================================================\n');
 
-  if (passed === total) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+  return { passed, total, success: passed === total };
 }
 
-runDecommissionVerificationSuite().catch(err => {
-  console.error('Fatal error in decommission verification suite:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('forecast-decommission.test.js')) {
+  runDecommissionVerificationSuite().then(({ success }) => {
+    process.exit(success ? 0 : 1);
+  }).catch(err => {
+    console.error('Fatal error in decommission verification suite:', err);
+    process.exit(1);
+  });
+}

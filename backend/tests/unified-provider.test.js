@@ -1,12 +1,12 @@
 import dotenv from 'dotenv';
-import { ProviderMerger } from './src/utils/provider-merger.js';
-import { ProviderSearchService } from './src/services/provider-search.service.js';
-import { ProviderRankingService } from './src/services/provider-ranking.service.js';
-import { findGovernmentFacilityMatch } from './src/data/sri-lanka-health-facilities.js';
+import { ProviderMerger } from '../src/utils/provider-merger.js';
+import { ProviderSearchService } from '../src/services/provider-search.service.js';
+import { ProviderRankingService } from '../src/services/provider-ranking.service.js';
+import { findGovernmentFacilityMatch } from '../src/data/sri-lanka-health-facilities.js';
 
 dotenv.config();
 
-async function runUnifiedProviderTests() {
+export async function runUnifiedProviderTests() {
   console.log('================================================================');
   console.log('       MedAI — Unified Provider Information Card Validation     ');
   console.log('================================================================\n');
@@ -204,14 +204,14 @@ async function runUnifiedProviderTests() {
   console.log(` Unified Provider Card Test Result: ${passed} / ${total} Passed`);
   console.log('================================================================\n');
 
-  if (passed === total) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+  return { passed, total, success: passed === total };
 }
 
-runUnifiedProviderTests().catch(err => {
-  console.error('Test suite runner encountered fatal error:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('unified-provider.test.js')) {
+  runUnifiedProviderTests().then(({ success }) => {
+    process.exit(success ? 0 : 1);
+  }).catch(err => {
+    console.error('Test suite runner encountered fatal error:', err);
+    process.exit(1);
+  });
+}

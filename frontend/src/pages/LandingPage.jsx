@@ -356,11 +356,11 @@ const LandingPage = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#15803d', backgroundColor: '#f0fdf4', padding: '1px 6px', borderRadius: '10px' }}>
-                      Rank #1
+                    <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#0369a1', backgroundColor: '#e0f2fe', padding: '1px 6px', borderRadius: '10px' }}>
+                      Direct Specialty Facility
                     </span>
                     <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#047857', backgroundColor: '#ecfdf5', padding: '1px 6px', borderRadius: '10px' }}>
-                      ✓ Verified Facility
+                      ✓ MOH Verified Facility
                     </span>
                   </div>
                   <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
@@ -368,8 +368,8 @@ const LandingPage = () => {
                   </h4>
                 </div>
                 <div style={{ textAlign: 'center', backgroundColor: '#f0fdf4', padding: '4px 8px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: '#15803d', display: 'block', lineHeight: 1 }}>Top</span>
-                  <span style={{ fontSize: '8.5px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Match</span>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#15803d', display: 'block', lineHeight: 1 }}>0.8 km</span>
+                  <span style={{ fontSize: '8.5px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Nearby</span>
                 </div>
               </div>
 

@@ -7,7 +7,7 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "db:migrate": "node migrate.js",
-    "test:ai": "node test-ai.js"
+    "test": "node tests/run-all-tests.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

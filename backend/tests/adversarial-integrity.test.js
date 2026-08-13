@@ -1,13 +1,13 @@
 import dotenv from 'dotenv';
-import { findGovernmentFacilityMatch } from './src/data/sri-lanka-health-facilities.js';
-import { ProviderMerger } from './src/utils/provider-merger.js';
-import { normalizeGooglePlace, normalizeOsmElement } from './src/utils/provider-normalizer.js';
-import { SpecialtyService } from './src/services/specialty.service.js';
-import { ProviderSearchService } from './src/services/provider-search.service.js';
+import { findGovernmentFacilityMatch } from '../src/data/sri-lanka-health-facilities.js';
+import { ProviderMerger } from '../src/utils/provider-merger.js';
+import { normalizeGooglePlace, normalizeOsmElement } from '../src/utils/provider-normalizer.js';
+import { SpecialtyService } from '../src/services/specialty.service.js';
+import { ProviderSearchService } from '../src/services/provider-search.service.js';
 
 dotenv.config();
 
-async function runAdversarialIntegritySuite() {
+export async function runAdversarialIntegritySuite() {
   console.log('================================================================');
   console.log('   MedAI — Zero-Fabrication & Identity Integrity Red-Team Suite ');
   console.log('================================================================\n');
@@ -217,6 +217,13 @@ async function runAdversarialIntegritySuite() {
   // --------------------------------------------------------------------------
   // TEST 11: AI Unavailable -> Returns Honest AI_UNAVAILABLE State (No Synthetic Fallback)
   // --------------------------------------------------------------------------
+  const originalReasonCareSpecialty = SpecialtyService.aiService?.reasonCareSpecialty;
+  // Force AI simulation to throw unavailable error
+  const origAiReason = (await import('../src/services/ai.service.js')).AiService.reasonCareSpecialty;
+  (await import('../src/services/ai.service.js')).AiService.reasonCareSpecialty = async () => {
+    throw new Error('Simulated AI upstream outage');
+  };
+
   const clinicalFindingContext = {
     issueType: 'medication_conflict',
     riskLevel: 'high',
@@ -224,6 +231,10 @@ async function runAdversarialIntegritySuite() {
     relevantMedications: ['Lisinopril', 'Spironolactone']
   };
   const aiTriageResult = await SpecialtyService.determineSpecialty(clinicalFindingContext);
+  
+  // Restore original function
+  (await import('../src/services/ai.service.js')).AiService.reasonCareSpecialty = origAiReason;
+
   assert(
     11,
     'Honest AI Failure State (Zero Synthetic Medical Fallback)',
@@ -232,8 +243,9 @@ async function runAdversarialIntegritySuite() {
     aiTriageResult.recommendedSpecialty === null &&
     aiTriageResult.confidence === null &&
     aiTriageResult.reason === null &&
+    Array.isArray(aiTriageResult.alternativeSpecialties) &&
     aiTriageResult.alternativeSpecialties.length === 0,
-    `When AI key is missing, system returns explicit AI_UNAVAILABLE with recommendedSpecialty: null (0 synthetic specialties)`
+    `When AI service is unavailable, system returns explicit AI_UNAVAILABLE with recommendedSpecialty: null (0 synthetic specialties)`
   );
 
   // --------------------------------------------------------------------------
@@ -259,14 +271,14 @@ async function runAdversarialIntegritySuite() {
   console.log(` Adversarial Test Suite Result: ${passed} / ${total} Passed`);
   console.log('================================================================\n');
 
-  if (passed === total) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+  return { passed, total, success: passed === total };
 }
 
-runAdversarialIntegritySuite().catch(err => {
-  console.error('Fatal error during adversarial suite execution:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('adversarial-integrity.test.js')) {
+  runAdversarialIntegritySuite().then(({ success }) => {
+    process.exit(success ? 0 : 1);
+  }).catch(err => {
+    console.error('Fatal error during adversarial suite execution:', err);
+    process.exit(1);
+  });
+}

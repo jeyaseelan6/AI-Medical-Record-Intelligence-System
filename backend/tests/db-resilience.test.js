@@ -1,4 +1,4 @@
-import './src/prestart.js';
+import '../src/prestart.js';
 import pg from 'pg';
 import { 
   pool, 
@@ -6,11 +6,11 @@ import {
   transaction, 
   isTransientConnectionError, 
   DatabaseUnavailableError 
-} from './src/config/db.js';
+} from '../src/config/db.js';
 
 const { Pool } = pg;
 
-async function runDbResilienceSuite() {
+export async function runDbResilienceSuite() {
   console.log('================================================================');
   console.log('   MedAI — PostgreSQL Connection Pool Resilience Test Suite     ');
   console.log('================================================================\n');
@@ -183,14 +183,14 @@ async function runDbResilienceSuite() {
   console.log(` Database Resilience Suite Result: ${passed} / ${total} Passed`);
   console.log('================================================================\n');
 
-  if (passed === total) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+  return { passed, total, success: passed === total };
 }
 
-runDbResilienceSuite().catch(err => {
-  console.error('Fatal test error in db resilience suite:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('db-resilience.test.js')) {
+  runDbResilienceSuite().then(({ success }) => {
+    process.exit(success ? 0 : 1);
+  }).catch(err => {
+    console.error('Fatal test error in db resilience suite:', err);
+    process.exit(1);
+  });
+}
